@@ -1,0 +1,43 @@
+export const SOCKET_EVENTS = {
+  CONNECT: 'connect',
+  DISCONNECT: 'disconnect',
+  JOIN_CHAT: 'join-chat',
+  LEAVE_CHAT: 'leave-chat',
+  ONLINE_USERS: 'online-users',
+  TYPING_START: 'typing:start',
+  TYPING_STOP: 'typing:stop',
+  TYPING: 'typing:start',
+  STOP_TYPING: 'typing:stop',
+  SEND_MESSAGE: 'message:send',
+  RECEIVE_MESSAGE: 'message:receive',
+  NEW_MESSAGE_NOTIFICATION: 'new_message_notification',
+  SIDEBAR_UPDATE: 'sidebar_update',
+  UNREAD_COUNT_UPDATE: 'unread_count_update',
+  MESSAGE_SENT: 'message:ack',
+  MESSAGE_RECEIVED: 'message:receive',
+  MESSAGE_UPDATED: 'message:updated',
+  MESSAGE_DELETED: 'message:deleted',
+  CHAT_UPDATED: 'chat-updated',
+  NOTIFICATION: 'notification',
+  CALL_INITIATE: 'call:initiate',
+  CALL_INCOMING: 'call:incoming',
+  CALL_ACCEPTED: 'call:accepted',
+  CALL_REJECTED: 'call:rejected',
+  CALL_MISSED: 'call:missed',
+  CALL_END: 'call:end',
+  CALL_SIGNAL: 'call-signal',
+  CALL_USER: 'call:initiate',
+  CALL_INVITE: 'call:incoming',
+  INCOMING_CALL: 'call:incoming',
+  ANSWER_CALL: 'call:accepted',
+  ICE_CANDIDATE: 'webrtc:ice-candidate',
+  REJECT_CALL: 'call:rejected',
+  END_CALL: 'call:end',
+  WEBRTC_OFFER: 'webrtc:offer',
+  WEBRTC_ANSWER: 'webrtc:answer',
+  WEBRTC_ICE_CANDIDATE: 'webrtc:ice-candidate'
+};
+
+export const APP_NAME = 'ChatSphere';
+
+export const MESSAGE_MEDIA_TYPES = ['image', 'video', 'audio', 'pdf', 'file'];

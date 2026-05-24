@@ -1,0 +1,30 @@
+{
+  "watch": [
+    "index.js",
+    "app.js",
+    "config",
+    "controllers",
+    "middleware",
+    "models",
+    "routes",
+    "services",
+    "socket",
+    "seed",
+    "utils"
+  ],
+  "ext": "js,mjs,cjs,json",
+  "ignore": [
+    "chatsphere.sqlite",
+    "*.sqlite",
+    "*.sqlite-journal",
+    "*.sqlite-shm",
+    "*.sqlite-wal",
+    "uploads/**",
+    "tmp/**",
+    "temp/**",
+    "logs/**",
+    "coverage/**",
+    "node_modules/**"
+  ],
+  "delay": "250"
+}

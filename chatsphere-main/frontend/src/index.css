@@ -1,0 +1,588 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * DESIGN SYSTEM ROOT
+ * Production-grade WhatsApp-like design system
+ * See DESIGN_SYSTEM.md for complete specifications
+ */
+
+:root {
+  --wa-bg: #000000;
+  --wa-sidebar-bg: #0a0a0a;
+  --wa-chat-bg: #0d0d0d;
+  --wa-surface: #0d0d0d;
+  --wa-card-hover: #1a1a1a;
+  --wa-primary: #0a84ff;
+  --wa-accent: #30d158;
+  --wa-green: #30d158;
+  --wa-green-hover: #24bd4a;
+  --wa-online: #30d158;
+  --wa-text: #ffffff;
+  --wa-text-secondary: #8e8e93;
+  --wa-sent: rgba(10, 132, 255, 0.18);
+  --wa-received: #151515;
+  --wa-sidebar-active: rgba(10, 132, 255, 0.16);
+  --wa-sidebar-hover: #1a1a1a;
+  --wa-border: #1c1c1e;
+  --wa-border-strong: #1c1c1e;
+  --wa-overlay: rgba(0, 0, 0, 0.72);
+  --wa-away: #ff9f0a;
+  --wa-offline: #8e8e93;
+  --wa-error: #ff453a;
+  --wa-info: #0a84ff;
+  
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-standard: 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-spring: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  
+  /* ============================================
+     4. TYPOGRAPHY VARIABLES
+     ============================================ */
+  
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+  --font-mono: 'Monaco', 'Courier New', monospace;
+  --letter-spacing: -0.02em;
+  
+  /* Font Weights */
+  --fw-normal: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  
+  /* ============================================
+     5. SPACING SCALE (4px base unit)
+     ============================================ */
+  
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+  --space-4xl: 40px;
+  
+  /* ============================================
+     6. RADIUS SYSTEM
+     ============================================ */
+  
+  --radius-full: 9999px;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 10px;
+  
+  /* ============================================
+     7. SHADOW SYSTEM
+     ============================================ */
+  
+  --shadow-subtle: 0 1px 0 rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.15);
+  
+  /* ============================================
+     8. SIZE SYSTEM
+     ============================================ */
+  
+  /* Component Dimensions */
+  --size-header: 60px;
+  --size-composer: 60px;
+  --size-sidebar: 320px;
+  --size-chat-item: 72px;
+  
+  /* ============================================
+     APPLY TO DOCUMENT
+     ============================================ */
+  
+  color-scheme: dark;
+  font-family: var(--font-family);
+  background: var(--wa-bg);
+  letter-spacing: var(--letter-spacing);
+}
+
+/* Backward compatibility for --wa-muted */
+:root {
+  --wa-muted: var(--wa-text-secondary);
+}
+
+/* Reduced motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--wa-bg);
+  color: var(--wa-text);
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #262626;
+  border-radius: 999px;
+}
+
+.glass-panel {
+  background: linear-gradient(180deg, rgba(13, 13, 13, 0.96) 0%, rgba(10, 10, 10, 0.96) 100%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--wa-border);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media (max-width: 1023px) {
+  .chat-composer {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .composer-input {
+    font-size: 16px;
+  }
+}
+
+/* WhatsApp-like bubbles */
+.bubble-sent {
+  background: linear-gradient(180deg, rgba(10, 132, 255, 0.24), rgba(10, 132, 255, 0.16));
+  color: var(--wa-text);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+}
+
+.bubble-received {
+  background: var(--wa-received);
+  color: var(--wa-text);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  border: 1px solid var(--wa-border);
+}
+
+.chat-composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  min-height: 60px;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: rgba(10, 10, 10, 0.98);
+  border-top: 1px solid var(--wa-border);
+  transition: all var(--transition-standard);
+  will-change: transform;
+}
+
+.composer-input {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 9999px;
+  padding: 10px 14px;
+  border: 1px solid var(--wa-border);
+  background: #111111;
+  color: var(--wa-text);
+  font-size: 14px;
+  font-family: inherit;
+  resize: none;
+  outline: none;
+}
+
+.composer-input:focus {
+  border-color: var(--wa-primary);
+  background: #151515;
+}
+
+.composer-input::placeholder {
+  color: var(--wa-muted);
+}
+
+.composer-send {
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--wa-primary);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  transition: all 0.24s ease;
+}
+
+.composer-send:hover:not(:disabled) {
+  background: #0b93ff;
+  transform: scale(1.03);
+}
+
+.composer-send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-left-active {
+  border-left: 3px solid var(--wa-primary) !important;
+}
+
+.wa-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #333 #000;
+}
+
+.wa-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.wa-scroll::-webkit-scrollbar-track {
+  background: #000;
+}
+
+.wa-scroll::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 999px;
+}
+
+.wa-scroll::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}
+
+.message-separator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: var(--space-lg) auto;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  background: rgba(28, 28, 30, 0.9);
+  color: var(--wa-text-secondary);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+/* ============================================
+   SMOOTH ANIMATIONS
+   ============================================ */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes typingAnimation {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn var(--transition-standard) ease-out;
+}
+
+.animate-slideInUp {
+  animation: slideInUp var(--transition-standard) ease-out;
+}
+
+.animate-slideInDown {
+  animation: slideInDown var(--transition-standard) ease-out;
+}
+
+.animate-slideInRight {
+  animation: slideInRight var(--transition-standard) ease-out;
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft var(--transition-standard) ease-out;
+}
+
+.animate-scaleIn {
+  animation: scaleIn var(--transition-standard) ease-out;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.typing-indicator span {
+  animation: typingAnimation 1.4s infinite;
+  display: inline-block;
+  margin: 0 2px;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* ============================================
+   SMOOTH TRANSITIONS
+   ============================================ */
+
+.transition-fast {
+  transition: all var(--transition-fast);
+}
+
+.transition-standard {
+  transition: all var(--transition-standard);
+}
+
+.transition-slow {
+  transition: all var(--transition-slow);
+}
+
+/* ============================================
+   MESSAGE GROUPING & STYLING
+   ============================================ */
+
+.message-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.message-separator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+  color: var(--wa-muted);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.message-separator::before,
+.message-separator::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.unread-badge {
+  background: var(--wa-green);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 12px;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* ============================================
+   MOBILE OPTIMIZATIONS
+   ============================================ */
+
+@media (max-width: 768px) {
+  /* Ensure 44px minimum touch targets */
+  button,
+  input,
+  textarea,
+  select,
+  a[role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Prevent layout shift on keyboard */
+  body {
+    position: fixed;
+    width: 100%;
+    overflow: hidden;
+  }
+  
+  /* Better spacing for mobile */
+  .chat-composer {
+    height: 56px;
+    padding: 8px 12px;
+    gap: 6px;
+  }
+  
+  .composer-input {
+    height: 36px;
+    padding: 8px 12px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  /* Reduce sidebar header on mobile */
+  .sidebar-header {
+    height: 56px;
+  }
+}
+
+/* ============================================
+   DARK MODE SUPPORT
+   ============================================ */
+
+[data-theme="dark"] {
+  --wa-bg: var(--wa-dark-bg);
+  --wa-text: var(--wa-dark-text);
+  --wa-muted: var(--wa-dark-text-secondary);
+}
+
+[data-theme="dark"] .glass-panel {
+  background: linear-gradient(180deg, #111b21 0%, #0a0e13 100%);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .bubble-sent {
+  background: var(--wa-dark-sent);
+  color: var(--wa-dark-text);
+  box-shadow: none;
+}
+
+[data-theme="dark"] .bubble-received {
+  background: var(--wa-dark-received);
+  color: var(--wa-dark-text);
+  border: none;
+  box-shadow: none;
+}
+
+[data-theme="dark"] .composer-input {
+  background: var(--wa-dark-bg-secondary);
+  color: var(--wa-dark-text);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .composer-input:focus {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--wa-green);
+}
+
+[data-theme="dark"] .message-separator::before,
+[data-theme="dark"] .message-separator::after {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================
+   ACCESSIBILITY & USABILITY
+   ============================================ */
+
+/* Focus visible for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid var(--wa-green);
+  outline-offset: 2px;
+}
+
+/* Better button interaction states */
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Smooth hover transitions */
+a,
+button {
+  -webkit-tap-highlight-color: rgba(37, 211, 102, 0.1);
+}
