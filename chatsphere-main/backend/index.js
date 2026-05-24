@@ -4,8 +4,14 @@ import net from 'net';
 import app from './app.js';
 import { sequelize } from './models/index.js';
 import { initSocket } from './socket/index.js';
+import { getCorsDebugSummary } from './config/origins.js';
 
-const BASE_PORT = Number(process.env.PORT || 5000);
+const BASE_PORT = Number(process.env.PORT);
+const isProduction = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
+
+if (!Number.isInteger(BASE_PORT) || BASE_PORT <= 0) {
+  throw new Error('PORT must be provided by process.env.PORT');
+}
 
 const server = http.createServer(app);
 
@@ -30,6 +36,23 @@ const findAvailablePort = async (startPort, retries = 5) => {
   return port;
 };
 
+const logStartupDiagnostics = (port) => {
+  const corsSummary = getCorsDebugSummary();
+
+  console.log('[startup][server]', {
+    nodeEnv: process.env.NODE_ENV || 'development',
+    activePort: port,
+    backendUrl: process.env.RENDER_EXTERNAL_URL || null,
+    apiUrl: process.env.RENDER_EXTERNAL_URL ? `${process.env.RENDER_EXTERNAL_URL.replace(/\/+$/, '')}/api` : null,
+    socketUrl: process.env.RENDER_EXTERNAL_URL || null,
+    clientUrl: process.env.CLIENT_URL || null,
+    allowedOrigins: corsSummary.exactOrigins,
+    allowedPatterns: corsSummary.patternOrigins,
+    socketCorsOrigins: corsSummary,
+    dbHost: process.env.MYSQL_HOST || null
+  });
+};
+
 /**
  * =========================
  * SOCKET INIT
@@ -52,7 +75,13 @@ const start = async () => {
     await sequelize.sync({ alter: false });
     console.log('✅ Models synced');
 
-    const port = await findAvailablePort(BASE_PORT);
+    const port = isProduction ? BASE_PORT : await findAvailablePort(BASE_PORT);
+
+    if (isProduction && port !== BASE_PORT) {
+      console.warn('[startup][server] production port mismatch detected', { BASE_PORT, port });
+    }
+
+    logStartupDiagnostics(port);
 
     server.listen(port, '0.0.0.0', () => {
       console.log(`🚀 ChatSphere server running on port ${port}`);

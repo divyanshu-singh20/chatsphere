@@ -14,7 +14,7 @@ import {
   sanitizeIceCandidate
 } from '../services/callService.js';
 import { createAndBroadcastMessage } from '../services/messageService.js';
-import { getSocketCorsOrigins } from '../config/origins.js';
+import { getCorsDebugSummary, isAllowedClientOrigin } from '../config/origins.js';
 
 let io = null;
 const onlineUsers = new Map();
@@ -129,9 +129,31 @@ const logCallEvent = (event, details) => {
 export const initSocket = (server) => {
   if (io) return io;
 
+  const socketCorsSummary = getCorsDebugSummary();
+  console.log('[startup][socket-cors]', {
+    nodeEnv: socketCorsSummary.nodeEnv,
+    allowedOrigins: socketCorsSummary.exactOrigins,
+    allowedPatterns: socketCorsSummary.patternOrigins,
+    allowLocalhost: socketCorsSummary.allowLocalhost,
+    allowNoOrigin: socketCorsSummary.allowNoOrigin,
+    allowVercelAppSubdomains: socketCorsSummary.allowVercelAppSubdomains,
+    credentials: true,
+    methods: ['GET', 'POST']
+  });
+
   io = new Server(server, {
     cors: {
-      origin: getSocketCorsOrigins(),
+      origin(origin, callback) {
+        if (!origin) return callback(null, true);
+
+        if (isAllowedClientOrigin(origin)) {
+          return callback(null, true);
+        }
+
+        console.log('[socket][cors-blocked]', { origin });
+        return callback(null, false);
+      },
+      methods: ['GET', 'POST'],
       credentials: true
     },
     transports: ['websocket', 'polling'],

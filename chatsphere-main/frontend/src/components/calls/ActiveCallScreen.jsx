@@ -19,6 +19,10 @@ const StreamVideo = memo(({ stream, muted, className }) => {
     const video = ref.current;
     if (!video) return;
 
+    video.autoplay = true;
+    video.playsInline = true;
+    video.muted = !!muted;
+
     if (!stream) {
       if (video.srcObject) {
         video.pause();
@@ -31,18 +35,27 @@ const StreamVideo = memo(({ stream, muted, className }) => {
       video.srcObject = stream;
     }
 
-    const playPromise = video.play();
-    if (playPromise?.catch) {
-      playPromise.catch(() => {});
+    const playVideo = () => {
+      const playPromise = video.play();
+      if (playPromise?.catch) {
+        playPromise.catch(() => {});
+      }
+    };
+
+    if (video.readyState >= 1) {
+      playVideo();
     }
 
+    video.onloadedmetadata = playVideo;
+
     return () => {
+      video.onloadedmetadata = null;
       if (video.srcObject === stream) {
         video.pause();
         video.srcObject = null;
       }
     };
-  }, [stream]);
+  }, [stream, muted]);
 
   return <video ref={ref} autoPlay playsInline muted={muted} className={className} />;
 });
@@ -52,6 +65,7 @@ export default function ActiveCallScreen({ call, localStream, remoteStream, dura
   const peerName = call.peerUser?.fullName || call.peerUser?.username || 'Unknown user';
   const isVideo = call.type === 'video';
   const displayDuration = useMemo(() => formatDuration(durationSeconds), [durationSeconds]);
+  const connectionLabel = call.status === 'connecting' ? 'Reconnecting' : 'Connected';
 
   return (
     <div className="fixed inset-0 z-50 flex min-h-[100dvh] flex-col overflow-hidden bg-[#000000] text-white">
@@ -59,7 +73,7 @@ export default function ActiveCallScreen({ call, localStream, remoteStream, dura
 
       <div className="relative flex items-center justify-between gap-4 px-4 pb-3 pt-[max(env(safe-area-inset-top),1rem)] md:px-6">
         <div>
-          <p className="text-xs uppercase tracking-[0.35em] text-[var(--wa-text-secondary)]">{call.status === 'connecting' ? 'Connecting' : 'Connected'}</p>
+          <p className="text-xs uppercase tracking-[0.35em] text-[var(--wa-text-secondary)]">{connectionLabel}</p>
           <p className="mt-1 text-sm text-white">{peerName}</p>
         </div>
         <div className="rounded-full border border-[var(--wa-border)] bg-[var(--wa-card-hover)] px-3 py-2 text-sm font-medium text-white tabular-nums tracking-[0.12em]">{displayDuration}</div>

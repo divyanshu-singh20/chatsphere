@@ -107,6 +107,7 @@ export function CallProvider({ children }) {
   const seenIceCandidateKeysRef = useRef(new Set());
   const unansweredCallTimeoutRef = useRef(null);
   const disconnectRecoveryTimeoutRef = useRef(null);
+  const peerRecoveryAttemptRef = useRef(0);
   const acceptingCallRef = useRef(false);
   const endingCallRef = useRef(false);
   const usersRef = useRef(users || []);
@@ -143,13 +144,38 @@ export function CallProvider({ children }) {
 
   const setLocalStreamSafe = useCallback((stream) => {
     if (localStreamRef.current === stream) return;
+
+    if (localStreamRef.current && localStreamRef.current !== stream) {
+      logCallLifecycle('call', 'stream-remove', {
+        target: 'local',
+        streamId: localStreamRef.current.id || null
+      });
+    }
+
     localStreamRef.current = stream;
     setLocalStream(stream);
+
+    if (stream) {
+      logCallLifecycle('call', 'stream-attach', {
+        target: 'local',
+        streamId: stream.id || null,
+        audioTracks: stream.getAudioTracks?.().length || 0,
+        videoTracks: stream.getVideoTracks?.().length || 0
+      });
+    }
   }, []);
 
   const setRemoteStreamSafe = useCallback((stream) => {
     if (remoteStreamRef.current === stream) return;
     const previousStreamId = remoteStreamRef.current?.id || null;
+
+    if (remoteStreamRef.current && remoteStreamRef.current !== stream) {
+      logCallLifecycle('call', 'stream-remove', {
+        target: 'remote',
+        streamId: previousStreamId
+      });
+    }
+
     remoteStreamRef.current = stream;
     setRemoteStream(stream);
 
@@ -160,6 +186,13 @@ export function CallProvider({ children }) {
     });
 
     if (stream) {
+      logCallLifecycle('call', 'stream-attach', {
+        target: 'remote',
+        streamId: stream.id || null,
+        audioTracks: stream.getAudioTracks?.().length || 0,
+        videoTracks: stream.getVideoTracks?.().length || 0
+      });
+
       const audioTracks = stream.getAudioTracks?.() || [];
       const videoTracks = stream.getVideoTracks?.() || [];
       console.log('[webrtc] remote stream', {
@@ -216,6 +249,17 @@ export function CallProvider({ children }) {
       // ignore
     }
   }, []);
+
+  const logCallLifecycle = useCallback((scope, event, details = {}) => {
+    const payload = {
+      callId: currentCallRef.current.callId || null,
+      chatId: currentCallRef.current.chatId || null,
+      ...details
+    };
+
+    console.debug(`[${scope}][${event}]`, payload);
+    pushGlobalLog(`${scope}:${event}`, payload);
+  }, [pushGlobalLog]);
 
   const emitSocketEvent = useCallback((socket, event, payload, ack) => {
     logSocketEmit(event, payload);
@@ -359,6 +403,12 @@ export function CallProvider({ children }) {
       remoteStreamId: remoteStreamRef.current?.id || null,
       peerPresent: !!peerRef.current
     });
+    logCallLifecycle('call', 'cleanup', {
+      reason,
+      peerPresent: !!peerRef.current,
+      localStreamId: localStreamRef.current?.id || null,
+      remoteStreamId: remoteStreamRef.current?.id || null
+    });
     try { pushGlobalLog('call:cleanup-start', { callId: snapshot.callId || null, reason }); } catch (e) {}
 
     try {
@@ -382,10 +432,21 @@ export function CallProvider({ children }) {
     } catch (err) {
       console.warn('[call][cleanup] cleanupConnection failed', { error: err?.message || err });
     }
+    logCallLifecycle('call', 'peer-cleanup', {
+      reason,
+      callId: snapshot.callId || null
+    });
     peerRef.current = null;
 
     stopMediaStream(localStreamRef.current);
     stopMediaStream(remoteStreamRef.current);
+    if (localStreamRef.current || remoteStreamRef.current) {
+      logCallLifecycle('call', 'stream-remove', {
+        target: 'both',
+        localStreamId: localStreamRef.current?.id || null,
+        remoteStreamId: remoteStreamRef.current?.id || null
+      });
+    }
     localStreamRef.current = null;
     remoteStreamRef.current = null;
 
@@ -393,6 +454,7 @@ export function CallProvider({ children }) {
     seenIceCandidateKeysRef.current.clear();
     pendingOfferRef.current = null;
     pendingCallIdRef.current = null;
+    peerRecoveryAttemptRef.current = 0;
     cameraFacingRef.current = 'user';
     callStartedRef.current = false;
     acceptingCallRef.current = false;
@@ -405,6 +467,10 @@ export function CallProvider({ children }) {
 
     console.debug('[call][reset]', {
       callId: snapshot.callId || null,
+      reason,
+      keepEndedState
+    });
+    logCallLifecycle('call', 'reset', {
       reason,
       keepEndedState
     });
@@ -511,9 +577,17 @@ export function CallProvider({ children }) {
 
     if (state.connectionState === 'failed' || state.connectionState === 'closed') {
       clearDisconnectRecoveryTimeout();
-      resetCallSession('connection-lost');
+      recoverPeerConnection(sessionId, state.connectionState).then((recovered) => {
+        if (!recovered) {
+          resetCallSession('connection-lost');
+        }
+      }).catch((error) => {
+        console.warn('[webrtc][recover] failed', { error: error?.message || error });
+        resetCallSession('connection-lost');
+      });
+      return;
     }
-  }, [clearDisconnectRecoveryTimeout, markConnected, resetCallSession, setCallState]);
+  }, [clearDisconnectRecoveryTimeout, markConnected, recoverPeerConnection, resetCallSession, setCallState]);
 
   const ensurePeerConnection = useCallback((sessionId) => {
     const existingPeer = peerRef.current;
@@ -559,8 +633,73 @@ export function CallProvider({ children }) {
     });
 
     peerRef.current = peer;
+    logCallLifecycle('call', 'peer-create', {
+      sessionId: sessionId || null,
+      connectionState: peer.connectionState || null,
+      iceConnectionState: peer.iceConnectionState || null
+    });
     return peer;
   }, [handlePeerStateChange, setRemoteStreamSafe]);
+
+  const recoverPeerConnection = useCallback(async (sessionId, reason = 'reconnect') => {
+    if (!callStartedRef.current) return false;
+    if (peerRecoveryAttemptRef.current > 0) return false;
+    if (!localStreamRef.current || !currentCallRef.current.peerUser) return false;
+
+    peerRecoveryAttemptRef.current += 1;
+    const current = currentCallRef.current;
+    const targetUserId = Number(current.peerUser?.id);
+
+    console.warn('[webrtc][recover]', {
+      sessionId: sessionId || null,
+      reason,
+      callId: current.callId || null,
+      targetUserId: targetUserId || null
+    });
+    logCallLifecycle('call', 'recover', {
+      reason,
+      sessionId: sessionId || null,
+      targetUserId: targetUserId || null
+    });
+
+    if (peerRef.current) {
+      try {
+        cleanupConnection(peerRef.current);
+      } catch (error) {
+        console.warn('[webrtc][recover] cleanup failed', { error: error?.message || error });
+      }
+    }
+    peerRef.current = null;
+
+    const peer = ensurePeerConnection(sessionId || current.callId || pendingCallIdRef.current || createTempCallId());
+    const peerHandle = attachPeerState(peer, sessionId || current.callId || pendingCallIdRef.current || null);
+    peerHandle.addLocalTracks(localStreamRef.current);
+
+    if (targetUserId) {
+      const socket = connectSocket(localStorage.getItem('chatsphere_token') || localStorage.getItem('token'));
+      if (typeof peer.restartIce === 'function') {
+        try {
+          peer.restartIce();
+        } catch (error) {
+          console.warn('[webrtc][recover] restartIce failed', { error: error?.message || error });
+        }
+      }
+
+      const offer = await createOffer(peer, sessionId || current.callId || null, { iceRestart: true });
+      emitSocketEvent(socket, CALL_EVENTS.OFFER, {
+        targetUserId,
+        chatId: current.chatId || null,
+        type: current.type || 'voice',
+        offer,
+        callId: current.callId || pendingCallIdRef.current || sessionId || null,
+        renegotiate: true
+      });
+
+      return true;
+    }
+
+    return false;
+  }, [attachPeerState, ensurePeerConnection, emitSocketEvent]);
 
   const endCall = useCallback((reason = 'ended') => {
     if (!callStartedRef.current) return;
@@ -662,6 +801,12 @@ export function CallProvider({ children }) {
         callId: sessionId
       };
 
+      logCallLifecycle('call', 'offer', {
+        sessionId,
+        targetUserId: peerUser.id,
+        direction: 'outgoing'
+      });
+
       emitSocketEvent(socket, CALL_EVENTS.OFFER, callPayload, (ack) => {
         if (ack?.callId) {
           pendingCallIdRef.current = ack.callId;
@@ -753,6 +898,13 @@ export function CallProvider({ children }) {
       }));
 
       const answer = await createAnswer(peer, sessionId);
+
+      logCallLifecycle('call', 'answer', {
+        sessionId,
+        targetUserId: currentCallRef.current.peerUser.id,
+        direction: 'outgoing'
+      });
+
       emitSocketEvent(socket, CALL_EVENTS.ANSWER, {
         targetUserId: currentCallRef.current.peerUser.id,
         chatId: currentCallRef.current.chatId,
@@ -827,6 +979,12 @@ export function CallProvider({ children }) {
       track.enabled = !nextMuted;
     });
 
+    logCallLifecycle('call', 'media-toggle', {
+      kind: 'audio',
+      enabled: !nextMuted,
+      streamId: stream.id || null
+    });
+
     setCallState((current) => ({
       ...current,
       isMuted: nextMuted
@@ -851,6 +1009,12 @@ export function CallProvider({ children }) {
     const nextCameraOff = !currentCallRef.current.isCameraOff;
     videoTracks.forEach((track) => {
       track.enabled = !nextCameraOff;
+    });
+
+    logCallLifecycle('call', 'media-toggle', {
+      kind: 'video',
+      enabled: !nextCameraOff,
+      streamId: stream.id || null
     });
 
     setCallState((current) => ({
@@ -921,6 +1085,64 @@ export function CallProvider({ children }) {
 
     const incomingCallId = payload.callId || `${payload.fromUserId}:${payload.chatId || 'na'}:${payload.type || 'voice'}`;
 
+    const isRenegotiation = callStartedRef.current
+      && currentCallRef.current.callId
+      && incomingCallId === currentCallRef.current.callId
+      && Number(currentCallRef.current.peerUser?.id) === Number(payload.fromUserId);
+
+    if (isRenegotiation) {
+      console.debug('[webrtc][renegotiation-offer]', {
+        callId: incomingCallId,
+        chatId: payload.chatId || null,
+        fromUserId: payload.fromUserId || null
+      });
+
+      pendingCallIdRef.current = incomingCallId;
+      pendingOfferRef.current = payload.offer;
+      pendingIceCandidatesRef.current = [];
+      seenIceCandidateKeysRef.current.clear();
+
+      const peerUser = normalizeUser(payload.fromUser) || currentCallRef.current.peerUser || normalizeUser({ id: payload.fromUserId });
+      setCallState((current) => ({
+        ...current,
+        peerUser,
+        status: 'connecting',
+        callId: incomingCallId,
+        endedAt: null,
+        endedReason: null
+      }));
+
+      Promise.resolve().then(async () => {
+        const socket = getSocket();
+        try {
+          const peer = ensurePeerConnection(incomingCallId);
+          const peerHandle = attachPeerState(peer, incomingCallId);
+          const stream = localStreamRef.current || await getLocalStream(currentCallRef.current.type || payload.type || 'voice');
+
+          if (!stream) {
+            throw new Error('Unable to acquire media for renegotiation');
+          }
+
+          peerHandle.addLocalTracks(stream);
+          await peer.setRemoteDescription(new RTCSessionDescription(payload.offer));
+          await flushPendingIceCandidates(peer, incomingCallId);
+          const answer = await createAnswer(peer, incomingCallId);
+          emitSocketEvent(socket, CALL_EVENTS.ANSWER, {
+            targetUserId: payload.fromUserId,
+            chatId: payload.chatId || null,
+            answer,
+            callId: incomingCallId,
+            renegotiate: true
+          });
+          return;
+        } catch (error) {
+          console.warn('[webrtc][renegotiation-failed]', { error: error?.message || error });
+        }
+      });
+
+      return;
+    }
+
     if (callStartedRef.current) {
       if (pendingCallIdRef.current === incomingCallId) {
         return;
@@ -941,6 +1163,11 @@ export function CallProvider({ children }) {
     pendingOfferRef.current = payload.offer;
     pendingIceCandidatesRef.current = [];
     seenIceCandidateKeysRef.current.clear();
+    logCallLifecycle('call', 'offer', {
+      callId: incomingCallId,
+      fromUserId: payload.fromUserId || null,
+      type: payload.type || null
+    });
 
     const peerUser = normalizeUser(payload.fromUser) || findPeerUser({ members: [payload.fromUser || { id: payload.fromUserId }] }, user?.id) || normalizeUser({ id: payload.fromUserId });
 
@@ -962,7 +1189,7 @@ export function CallProvider({ children }) {
 
     callSoundManager.playRingtone().then((played) => setSoundBlocked(!played)).catch(() => {});
     vibrateSafely([300, 200, 300]);
-  }, [findPeerUser, setCallState, user?.id]);
+  }, [attachPeerState, createAnswer, ensurePeerConnection, emitSocketEvent, findPeerUser, flushPendingIceCandidates, getLocalStream, setCallState, user?.id]);
 
   const handleIncomingAnswer = useCallback(async (payload = {}) => {
     console.debug('[socket][receive]', {
@@ -1006,6 +1233,9 @@ export function CallProvider({ children }) {
 
       await flushPendingIceCandidates(peer, payload.callId || currentCallRef.current.callId || null);
       clearUnansweredCallTimeout();
+      logCallLifecycle('call', 'answer', {
+        callId: payload.callId || currentCallRef.current.callId || null
+      });
 
       setCallState((current) => ({
         ...current,
@@ -1035,6 +1265,11 @@ export function CallProvider({ children }) {
     });
 
     if (!payload?.candidate) return;
+
+    logCallLifecycle('call', 'ice', {
+      callId: payload.callId || null,
+      candidate: payload.candidate?.candidate || null
+    });
 
     const candidateKey = buildIceCandidateKey(payload.candidate);
     if (!candidateKey || seenIceCandidateKeysRef.current.has(candidateKey)) {
@@ -1152,6 +1387,8 @@ export function CallProvider({ children }) {
       return undefined;
     }
 
+    window.__callLog = window.__callLog || [];
+
     const socket = getSocket();
     const token = localStorage.getItem('chatsphere_token') || localStorage.getItem('token');
     if (token) {
@@ -1179,6 +1416,12 @@ export function CallProvider({ children }) {
     const handleReconnect = () => {
       console.debug('[socket][reconnect-success]', { callActive: callStartedRef.current, callId: currentCallRef.current.callId || null });
       clearDisconnectRecoveryTimeout();
+
+      if (callStartedRef.current && currentCallRef.current.status !== 'ended' && currentCallRef.current.status !== 'idle') {
+        recoverPeerConnection(currentCallRef.current.callId || pendingCallIdRef.current || null, 'socket-reconnect').catch((error) => {
+          console.warn('[webrtc][recover] failed', { error: error?.message || error });
+        });
+      }
     };
 
     const handleReconnectAttempt = (attempt) => {
@@ -1279,6 +1522,10 @@ export function CallProvider({ children }) {
         callActive: callStartedRef.current,
         callId: currentCallRef.current.callId || null
       });
+
+      if (callStartedRef.current) {
+        endCall('refresh');
+      }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);

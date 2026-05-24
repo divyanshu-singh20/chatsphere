@@ -1,7 +1,6 @@
 const buildIceServers = () => {
   const iceServers = [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:global.stun.twilio.com:3478' }
+    { urls: 'stun:stun.l.google.com:19302' }
   ];
 
   const turnUrl = import.meta.env.VITE_TURN_URL;
@@ -212,11 +211,11 @@ const normalizeIceCandidate = (candidate) => {
   };
 };
 
-export const createOffer = async (peer, sessionId) => {
+export const createOffer = async (peer, sessionId, offerOptions = {}) => {
   if (!peer) throw new Error('Peer connection is required to create an offer');
 
-  console.debug('[webrtc][offer-created]', { sessionId: sessionId || null });
-  const offer = await peer.createOffer();
+  console.debug('[webrtc][offer-created]', { sessionId: sessionId || null, offerOptions });
+  const offer = await peer.createOffer(offerOptions);
   await peer.setLocalDescription(offer);
   console.debug('[webrtc][local-description-set]', {
     sessionId: sessionId || null,
