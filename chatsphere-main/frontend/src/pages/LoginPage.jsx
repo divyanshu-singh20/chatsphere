@@ -27,10 +27,26 @@ export default function LoginPage() {
     event.preventDefault();
     if (!validate()) return;
     try {
-      await login(form);
-      navigate(location.state?.from?.pathname || '/app/chat', { replace: true });
+      const { user } = await login(form);
+      const nextPath = location.state?.from?.pathname || (user?.role === 'admin' ? '/admin/users' : '/app/chat');
+      navigate(nextPath, { replace: true });
     } catch (error) {
-      toast.error(error?.response?.data?.message || 'Login failed');
+      const message = error?.response?.data?.message || 'Login failed';
+      const status = error?.response?.status;
+
+      if (status === 403 && /approval|blocked/i.test(message)) {
+        navigate('/account-status', {
+          replace: true,
+          state: {
+            status: /blocked/i.test(message) ? 'blocked' : 'pending',
+            title: /blocked/i.test(message) ? 'Account blocked' : 'Account waiting for approval',
+            message
+          }
+        });
+        return;
+      }
+
+      toast.error(message);
     }
   };
 

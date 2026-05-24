@@ -1,16 +1,19 @@
 import { lazy } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
+import AdminRoute from '../components/AdminRoute';
 import AuthLayout from '../layouts/AuthLayout';
 import MainLayout from '../layouts/MainLayout';
 
 const LoginPage = lazy(() => import('../pages/LoginPage'));
 const RegisterPage = lazy(() => import('../pages/RegisterPage'));
+const AccountStatusPage = lazy(() => import('../pages/AccountStatusPage'));
 const ChatPage = lazy(() => import('../pages/ChatPage'));
 const CallHistoryPage = lazy(() => import('../pages/CallHistoryPage'));
 const StatusPage = lazy(() => import('../pages/StatusPage'));
 const ProfilePage = lazy(() => import('../pages/ProfilePage'));
 const SettingsPage = lazy(() => import('../pages/SettingsPage'));
+const AdminUsersPage = lazy(() => import('../pages/AdminUsersPage'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 
 function LegacyChatRedirect() {
@@ -24,6 +27,7 @@ export default function AppRouter() {
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/account-status" element={<AccountStatusPage />} />
       </Route>
 
       <Route
@@ -41,6 +45,14 @@ export default function AppRouter() {
         <Route path="status" element={<StatusPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route
+          path="admin/users"
+          element={
+            <AdminRoute>
+              <AdminUsersPage />
+            </AdminRoute>
+          }
+        />
 
         <Route path="app" element={<Navigate to="/chats" replace />} />
         <Route path="app/chat" element={<Navigate to="/chats" replace />} />
@@ -49,6 +61,7 @@ export default function AppRouter() {
         <Route path="app/status" element={<Navigate to="/status" replace />} />
         <Route path="app/settings" element={<Navigate to="/settings" replace />} />
         <Route path="app/profile" element={<Navigate to="/profile" replace />} />
+        <Route path="app/admin/users" element={<Navigate to="/admin/users" replace />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/chats" replace />} />

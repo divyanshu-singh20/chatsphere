@@ -1,6 +1,7 @@
 import { verifyToken } from '../utils/jwt.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { User } from '../models/index.js';
+import { getAccountAccessMessage, isAccountBlocked, isAccountPending, normalizeAccountStatus, normalizeRole } from '../utils/accountAccess.js';
 
 export const protect = asyncHandler(async (req, res, next) => {
   try {
@@ -28,6 +29,20 @@ export const protect = asyncHandler(async (req, res, next) => {
     if (!user || user.isDeleted) {
       return res.status(401).json({ success: false, message: 'Not authorized' });
     }
+
+    const normalizedStatus = normalizeAccountStatus(user.status);
+    const normalizedRole = normalizeRole(user.role);
+
+    if (isAccountPending(normalizedStatus)) {
+      return res.status(403).json({ success: false, message: getAccountAccessMessage('pending') });
+    }
+
+    if (isAccountBlocked(normalizedStatus)) {
+      return res.status(403).json({ success: false, message: getAccountAccessMessage('blocked') });
+    }
+
+    user.status = normalizedStatus;
+    user.role = normalizedRole;
 
     req.user = user;
     next();

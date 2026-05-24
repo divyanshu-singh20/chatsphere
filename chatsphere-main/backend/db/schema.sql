@@ -3,10 +3,16 @@
 
 CREATE TABLE IF NOT EXISTS `users` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `fullName` VARCHAR(150) NOT NULL,
   `username` VARCHAR(80) NOT NULL UNIQUE,
   `email` VARCHAR(191) NOT NULL UNIQUE,
+  `phoneNumber` VARCHAR(30) NOT NULL UNIQUE,
+  `password` VARCHAR(255) NOT NULL,
   `avatar` TEXT,
   `bio` TEXT,
+  `about` TEXT,
+  `status` ENUM('pending','approved','blocked') NOT NULL DEFAULT 'pending',
+  `role` ENUM('user','admin') NOT NULL DEFAULT 'user',
   `lastSeenAt` DATETIME NULL,
   `isOnline` TINYINT(1) DEFAULT 0,
   `createdAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

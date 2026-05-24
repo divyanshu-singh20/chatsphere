@@ -9,13 +9,25 @@ const seed = async () => {
   const password = await bcrypt.hash('Password@123', 12);
   const users = await User.bulkCreate([
     {
+      fullName: 'Owner Admin',
+      username: 'owner',
+      email: 'owner@chatsphere.app',
+      phoneNumber: '+919999000000',
+      password,
+      bio: 'ChatSphere owner account.',
+      isOnline: true,
+      status: 'approved',
+      role: 'admin'
+    },
+    {
       fullName: 'Aarav Sharma',
       username: 'aarav',
       email: 'aarav@chatsphere.app',
       phoneNumber: '+919999000001',
       password,
       bio: 'Product designer and early adopter.',
-      isOnline: true
+      status: 'pending',
+      role: 'user'
     },
     {
       fullName: 'Maya Patel',
@@ -23,7 +35,9 @@ const seed = async () => {
       email: 'maya@chatsphere.app',
       phoneNumber: '+919999000002',
       password,
-      bio: 'Frontend engineer who loves real-time UX.'
+      bio: 'Frontend engineer who loves real-time UX.',
+      status: 'pending',
+      role: 'user'
     },
     {
       fullName: 'Kabir Singh',
@@ -31,7 +45,9 @@ const seed = async () => {
       email: 'kabir@chatsphere.app',
       phoneNumber: '+919999000003',
       password,
-      bio: 'Backend engineer and coffee enthusiast.'
+      bio: 'Backend engineer and coffee enthusiast.',
+      status: 'pending',
+      role: 'user'
     }
   ]);
 

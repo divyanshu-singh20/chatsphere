@@ -15,6 +15,7 @@ import {
 } from '../services/callService.js';
 import { createAndBroadcastMessage } from '../services/messageService.js';
 import { getCorsDebugSummary, isAllowedClientOrigin } from '../config/origins.js';
+import { getAccountAccessMessage, isAccountBlocked, isAccountPending, normalizeAccountStatus, normalizeRole } from '../utils/accountAccess.js';
 
 let io = null;
 const onlineUsers = new Map();
@@ -31,6 +32,24 @@ export const getSocketIdForUser = (userId) => {
   }
 
   return getActiveSocketIds(targetUserId)[0] || null;
+};
+
+export const forceLogoutUser = (userId, payload = {}) => {
+  const targetUserId = normalizeUserId(userId);
+  if (!targetUserId || !io) return;
+
+  const socketIds = SocketManager.getSocketsForUser(targetUserId);
+  socketIds.forEach((socketId) => {
+    const socket = io.sockets.sockets.get(socketId);
+    if (!socket) return;
+
+    socket.emit('force-logout', {
+      userId: targetUserId,
+      reason: payload.reason || 'blocked-by-admin',
+      message: payload.message || 'Your account has been blocked.'
+    });
+    socket.disconnect(true);
+  });
 };
 
 const normalizeUserId = (value) => {
@@ -176,6 +195,18 @@ export const initSocket = (server) => {
       const user = await User.findByPk(decoded.id);
 
       if (!user) return next(new Error('Unauthorized'));
+
+      const normalizedStatus = normalizeAccountStatus(user.status);
+      if (isAccountPending(normalizedStatus)) {
+        return next(new Error('ACCOUNT_PENDING'));
+      }
+
+      if (isAccountBlocked(normalizedStatus)) {
+        return next(new Error('ACCOUNT_BLOCKED'));
+      }
+
+      user.status = normalizedStatus;
+      user.role = normalizeRole(user.role);
 
       socket.user = user;
       next();
@@ -624,4 +655,4 @@ export const initSocket = (server) => {
   return io;
 };
 
-export default { initSocket, getIO, getSocketIdForUser };
+export default { initSocket, getIO, getSocketIdForUser, forceLogoutUser };
