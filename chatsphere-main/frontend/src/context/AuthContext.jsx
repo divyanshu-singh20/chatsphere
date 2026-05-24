@@ -52,15 +52,15 @@ export function AuthProvider({ children }) {
     const handleForceLogout = (payload = {}) => {
       const nextNotice = {
         status: 'blocked',
-        message: payload.message || 'Your account has been blocked by an admin.'
+        message: payload.message || 'Account blocked'
       };
 
       setAccessNotice(nextNotice);
       logout(false, { preserveAccessNotice: true });
     };
 
-    socket.off('force-logout', handleForceLogout);
-    socket.on('force-logout', handleForceLogout);
+    socket.off('call:force-logout', handleForceLogout);
+    socket.on('call:force-logout', handleForceLogout);
   }, [logout]);
 
   /**
@@ -99,10 +99,10 @@ export function AuthProvider({ children }) {
         const status = err?.response?.status;
         const message = err?.response?.data?.message || '';
 
-        if (status === 403 && /waiting for admin approval/i.test(message)) {
+        if (status === 403 && /awaiting approval|waiting for admin approval/i.test(message)) {
           setAccessNotice({ status: 'pending', message });
           logout(false, { preserveAccessNotice: true });
-        } else if (status === 403 && /blocked by admin/i.test(message)) {
+        } else if (status === 403 && /account blocked|blocked by admin/i.test(message)) {
           setAccessNotice({ status: 'blocked', message });
           logout(false, { preserveAccessNotice: true });
         } else {

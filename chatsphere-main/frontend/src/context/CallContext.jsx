@@ -19,14 +19,10 @@ import CallContext from './call-state-context';
 const CALL_EVENTS = {
   OFFER: 'call:offer',
   ANSWER: 'call:answer',
-  ICE: 'call:ice-candidate',
+  ICE: 'call:ice',
   END: 'call:end',
   REJECT: 'call:reject',
-  LEGACY_OFFER: 'call:initiate',
-  LEGACY_INCOMING: 'call:incoming',
-  LEGACY_INVITE: 'call-invite',
-  LEGACY_ANSWER: 'call:accepted',
-  LEGACY_REJECT: 'call:rejected'
+  RECONNECT: 'call:reconnect'
 };
 
 const initialCallState = {
@@ -789,7 +785,7 @@ export function CallProvider({ children }) {
       }
 
       const offer = await createOffer(peer, sessionId || current.callId || null, { iceRestart: true });
-      emitSocketEvent(socket, CALL_EVENTS.OFFER, {
+      emitSocketEvent(socket, CALL_EVENTS.RECONNECT, {
         targetUserId,
         chatId: current.chatId || null,
         type: current.type || 'voice',
@@ -1514,6 +1510,7 @@ export function CallProvider({ children }) {
 
     const listeners = [
       [CALL_EVENTS.OFFER, handleIncomingOffer],
+      [CALL_EVENTS.RECONNECT, handleIncomingOffer],
       [CALL_EVENTS.ANSWER, handleIncomingAnswer],
       [CALL_EVENTS.ICE, handleIncomingIce],
       [CALL_EVENTS.REJECT, handleIncomingReject],

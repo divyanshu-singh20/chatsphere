@@ -4,7 +4,7 @@ const allowedRoles = new Set(['user', 'admin']);
 export const normalizeAccountStatus = (status) => {
   const value = String(status || '').trim().toLowerCase();
   if (allowedStatuses.has(value)) return value;
-  return 'approved';
+  return 'pending';
 };
 
 export const normalizeRole = (role) => {
@@ -21,7 +21,7 @@ export const isAccountApproved = (status) => normalizeAccountStatus(status) === 
 
 export const getAccountAccessMessage = (status) => {
   const normalized = normalizeAccountStatus(status);
-  if (normalized === 'pending') return 'Account waiting for admin approval';
-  if (normalized === 'blocked') return 'Account blocked by admin';
+  if (normalized === 'pending') return 'Awaiting approval';
+  if (normalized === 'blocked') return 'Account blocked';
   return 'Account approved';
 };
