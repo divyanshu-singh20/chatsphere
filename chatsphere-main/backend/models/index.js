@@ -137,9 +137,6 @@
 import { DataTypes, Op } from 'sequelize';
 import sequelize from '../config/db.js';
 
-const ACCOUNT_STATUSES = ['pending', 'approved', 'blocked'];
-const USER_ROLES = ['user', 'admin'];
-
 const User = sequelize.define('User', {
   id: {
     type: DataTypes.BIGINT.UNSIGNED,
@@ -191,17 +188,8 @@ const User = sequelize.define('User', {
   },
 
   status: {
-    type: DataTypes.STRING(20),
-    defaultValue: 'pending'
-  },
-
-  role: {
-    type: DataTypes.STRING(20),
-    allowNull: false,
-    defaultValue: 'user',
-    validate: {
-      isIn: [USER_ROLES]
-    }
+    type: DataTypes.STRING(120),
+    defaultValue: 'Hey there! I am using ChatSphere.'
   },
 
   lastSeenAt: {

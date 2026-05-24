@@ -67,15 +67,8 @@ export default function RegisterPage() {
         });
       }
 
-      const result = await register(payload);
-      navigate('/account-status', {
-        replace: true,
-        state: {
-          status: 'pending',
-          title: 'Account created',
-          message: result?.message || 'Your account is waiting for admin approval. You will be able to sign in once approved.'
-        }
-      });
+      await register(payload);
+      navigate('/app/chat', { replace: true });
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Registration failed');
     }

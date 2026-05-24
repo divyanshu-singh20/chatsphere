@@ -1,22 +1,16 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiMessageCircle, FiPhone, FiClock, FiSettings, FiShield } from 'react-icons/fi';
-import { useAuth } from '../context/AuthContext';
+import { FiMessageCircle, FiPhone, FiClock, FiSettings } from 'react-icons/fi';
+
+const items = [
+  { to: '/chats', label: 'Chats', icon: FiMessageCircle },
+  { to: '/calls', label: 'Calls', icon: FiPhone },
+  { to: '/status', label: 'Status', icon: FiClock },
+  { to: '/settings', label: 'Settings', icon: FiSettings }
+];
 
 export default function MobileBottomNav() {
   const location = useLocation();
-  const { user } = useAuth();
-
-  const items = [
-    { to: '/chats', label: 'Chats', icon: FiMessageCircle },
-    { to: '/calls', label: 'Calls', icon: FiPhone },
-    { to: '/status', label: 'Status', icon: FiClock },
-    { to: '/settings', label: 'Settings', icon: FiSettings }
-  ];
-
-  if (user?.role === 'admin') {
-    items.splice(3, 0, { to: '/admin/users', label: 'Admin', icon: FiShield });
-  }
 
   if (location.pathname.startsWith('/chat/')) {
     return null;
@@ -24,7 +18,7 @@ export default function MobileBottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-[var(--wa-border)] bg-[rgba(10,10,10,0.96)] backdrop-blur-md lg:hidden">
-      <div className={`grid px-1 py-2 pb-[calc(env(safe-area-inset-bottom)+8px)] ${items.length > 4 ? 'grid-cols-5' : 'grid-cols-4'}`}>
+      <div className="grid grid-cols-4 px-1 py-2 pb-[calc(env(safe-area-inset-bottom)+8px)]">
         {items.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}

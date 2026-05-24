@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { disconnectSocket, getSocket } from '../services/socket';
@@ -22,46 +22,6 @@ export function AuthProvider({ children }) {
 
   const [loading, setLoading] = useState(true);
   const [authBusy, setAuthBusy] = useState(false);
-  const [accessNotice, setAccessNotice] = useState(null);
-
-  const clearStoredAuth = useCallback(() => {
-    setToken(null);
-    setUser(null);
-
-    localStorage.removeItem(storageKeys.token);
-    localStorage.removeItem(storageKeys.user);
-    localStorage.removeItem('token');
-
-    disconnectSocket();
-  }, []);
-
-  const logout = useCallback((showToast = true, options = {}) => {
-    const { preserveAccessNotice = false } = options;
-    clearStoredAuth();
-
-    if (!preserveAccessNotice) {
-      setAccessNotice(null);
-    }
-
-    if (showToast) toast.success('Logged out');
-  }, [clearStoredAuth]);
-
-  const bindForceLogoutListener = useCallback((socket) => {
-    if (!socket) return;
-
-    const handleForceLogout = (payload = {}) => {
-      const nextNotice = {
-        status: 'blocked',
-        message: payload.message || 'Account blocked'
-      };
-
-      setAccessNotice(nextNotice);
-      logout(false, { preserveAccessNotice: true });
-    };
-
-    socket.off('call:force-logout', handleForceLogout);
-    socket.on('call:force-logout', handleForceLogout);
-  }, [logout]);
 
   /**
    * =========================
@@ -83,7 +43,6 @@ export function AuthProvider({ children }) {
       try {
         const { data } = await api.get('/auth/me'); // backend: /api/auth/me
         setUser(data.user);
-        setAccessNotice(null);
 
         localStorage.setItem(
           storageKeys.user,
@@ -92,39 +51,26 @@ export function AuthProvider({ children }) {
 
         const socket = getSocket();
         socket.auth = { token: storedToken };
-        bindForceLogoutListener(socket);
 
         if (!socket.connected) socket.connect();
       } catch (err) {
-        const status = err?.response?.status;
-        const message = err?.response?.data?.message || '';
-
-        if (status === 403 && /awaiting approval|waiting for admin approval/i.test(message)) {
-          setAccessNotice({ status: 'pending', message });
-          logout(false, { preserveAccessNotice: true });
-        } else if (status === 403 && /account blocked|blocked by admin/i.test(message)) {
-          setAccessNotice({ status: 'blocked', message });
-          logout(false, { preserveAccessNotice: true });
-        } else {
-          logout(false);
-        }
+        logout(false);
       } finally {
         setLoading(false);
       }
     };
 
     verify();
-  }, [bindForceLogoutListener, logout, token]);
+  }, [token]);
 
   /**
    * =========================
    * SAVE LOGIN STATE
    * =========================
    */
-  const persistAuth = useCallback((nextToken, nextUser) => {
+  const persistAuth = (nextToken, nextUser) => {
     setToken(nextToken);
     setUser(nextUser);
-    setAccessNotice(null);
 
     localStorage.setItem(storageKeys.token, nextToken);
     localStorage.setItem('token', nextToken);
@@ -135,17 +81,16 @@ export function AuthProvider({ children }) {
 
     const socket = getSocket();
     socket.auth = { token: nextToken };
-    bindForceLogoutListener(socket);
 
     if (!socket.connected) socket.connect();
-  }, [bindForceLogoutListener]);
+  };
 
   /**
    * =========================
    * LOGIN
    * =========================
    */
-  const login = useCallback(async (payload) => {
+  const login = async (payload) => {
     setAuthBusy(true);
 
     try {
@@ -157,30 +102,48 @@ export function AuthProvider({ children }) {
     } finally {
       setAuthBusy(false);
     }
-  }, [persistAuth]);
+  };
 
   /**
    * =========================
    * REGISTER
    * =========================
    */
-  const register = useCallback(async (payload) => {
+  const register = async (payload) => {
     setAuthBusy(true);
 
     try {
       const { data } = await api.post('/auth/register', payload);
-      setAccessNotice(null);
+      persistAuth(data.token, data.user);
 
-      toast.success(data?.message || 'Account created');
+      toast.success('Account created');
       return data;
     } finally {
       setAuthBusy(false);
     }
-  }, []);
+  };
 
   /**
    * =========================
    * LOGOUT
+   * =========================
+   */
+  const logout = (showToast = true) => {
+    setToken(null);
+    setUser(null);
+
+    localStorage.removeItem(storageKeys.token);
+    localStorage.removeItem(storageKeys.user);
+    localStorage.removeItem('token');
+
+    disconnectSocket();
+
+    if (showToast) toast.success('Logged out');
+  };
+
+  /**
+   * =========================
+   * CONTEXT VALUE
    * =========================
    */
   const value = useMemo(
@@ -190,12 +153,11 @@ export function AuthProvider({ children }) {
       token,
       loading,
       authBusy,
-      accessNotice,
       login,
       register,
       logout
     }),
-    [user, token, loading, authBusy, accessNotice, login, register, logout]
+    [user, token, loading, authBusy]
   );
 
   return (

@@ -7,7 +7,6 @@ import SocketManager from './manager.js';
 import presenceService from '../services/presenceService.js';
 import {
   createCallRecord,
-  resolveCallRecord,
   updateCallRecord,
   toSafeUser,
   getActiveCallId,
@@ -16,7 +15,6 @@ import {
 } from '../services/callService.js';
 import { createAndBroadcastMessage } from '../services/messageService.js';
 import { getCorsDebugSummary, isAllowedClientOrigin } from '../config/origins.js';
-import { getAccountAccessMessage, isAccountBlocked, isAccountPending, normalizeAccountStatus, normalizeRole } from '../utils/accountAccess.js';
 
 let io = null;
 const onlineUsers = new Map();
@@ -33,24 +31,6 @@ export const getSocketIdForUser = (userId) => {
   }
 
   return getActiveSocketIds(targetUserId)[0] || null;
-};
-
-export const forceLogoutUser = (userId, payload = {}) => {
-  const targetUserId = normalizeUserId(userId);
-  if (!targetUserId || !io) return;
-
-  const socketIds = SocketManager.getSocketsForUser(targetUserId);
-  socketIds.forEach((socketId) => {
-    const socket = io.sockets.sockets.get(socketId);
-    if (!socket) return;
-
-    socket.emit('call:force-logout', {
-      userId: targetUserId,
-      reason: payload.reason || 'blocked-by-admin',
-      message: payload.message || 'Your account has been blocked.'
-    });
-    socket.disconnect(true);
-  });
 };
 
 const normalizeUserId = (value) => {
@@ -139,8 +119,7 @@ const toPlainCallSignal = (payload = {}) => ({
   reason: typeof payload.reason === 'string' && payload.reason.trim() ? payload.reason.trim() : null,
   offer: sanitizeSessionDescription(payload.offer),
   answer: sanitizeSessionDescription(payload.answer),
-  candidate: sanitizeIceCandidate(payload.candidate),
-  reconnect: payload.reconnect === true || payload.renegotiate === true
+  candidate: sanitizeIceCandidate(payload.candidate)
 });
 
 const logCallEvent = (event, details) => {
@@ -198,18 +177,6 @@ export const initSocket = (server) => {
 
       if (!user) return next(new Error('Unauthorized'));
 
-      const normalizedStatus = normalizeAccountStatus(user.status);
-      if (isAccountPending(normalizedStatus)) {
-        return next(new Error(getAccountAccessMessage('pending')));
-      }
-
-      if (isAccountBlocked(normalizedStatus)) {
-        return next(new Error(getAccountAccessMessage('blocked')));
-      }
-
-      user.status = normalizedStatus;
-      user.role = normalizeRole(user.role);
-
       socket.user = user;
       next();
     } catch (error) {
@@ -250,21 +217,19 @@ export const initSocket = (server) => {
     io.emit('user:online', { userId, lastSeenAt: null });
     io.emit('online-users', SocketManager.getOnlineUserIds());
 
-    const handleCallOffer = async (payload = {}, ack, options = {}) => {
+    const handleCallOffer = async (payload = {}, ack) => {
       try {
         const signal = toPlainCallSignal(payload);
         const targetUserId = signal.targetUserId;
-        const isReconnectSignal = options.reconnect === true || signal.reconnect === true;
-        const relayEvent = isReconnectSignal ? 'call:reconnect' : 'call:offer';
 
         if (!targetUserId) {
-          logCallEvent(isReconnectSignal ? 'reconnect rejected' : 'offer rejected', { fromUserId: userId, reason: 'missing target user' });
+          logCallEvent('offer rejected', { fromUserId: userId, reason: 'missing target user' });
           if (typeof ack === 'function') ack({ ok: false, error: 'Missing target user' });
           return;
         }
 
         if (!signal.offer) {
-          logCallEvent(isReconnectSignal ? 'reconnect rejected' : 'offer rejected', {
+          logCallEvent('offer rejected', {
             fromUserId: userId,
             toUserId: targetUserId,
             chatId: signal.chatId,
@@ -287,7 +252,7 @@ export const initSocket = (server) => {
           } catch (err) {
             console.warn('[socket][offer] target-lookup-debug-failed', { err: err?.message || err });
           }
-          logCallEvent(isReconnectSignal ? 'reconnect dropped' : 'offer dropped', {
+          logCallEvent('offer dropped', {
             fromUserId: userId,
             toUserId: targetUserId,
             chatId: signal.chatId,
@@ -297,60 +262,23 @@ export const initSocket = (server) => {
           return;
         }
 
-        let call = null;
-
-        if (isReconnectSignal) {
-          call = await resolveCallRecord({
-            callId: signal.callId || getActiveCallId(userId, targetUserId, signal.chatId) || null,
-            callerId: userId,
-            calleeId: targetUserId,
-            chatId: signal.chatId
-          });
-
-          if (call) {
-            await updateCallRecord({
-              callId: call.id,
-              callerId: call.callerId,
-              calleeId: call.calleeId,
-              chatId: call.chatId,
-              status: call.status || 'accepted',
-              signalingData: {
-                reconnect: true,
-                offer: signal.offer,
-                initiatedBy: userId
-              }
-            });
+        const call = await createCallRecord({
+          callerId: userId,
+          calleeId: targetUserId,
+          chatId: signal.chatId,
+          type: signal.type,
+          signalingData: {
+            offer: signal.offer,
+            initiatedBy: userId
           }
-        } else {
-          call = await createCallRecord({
-            callerId: userId,
-            calleeId: targetUserId,
-            chatId: signal.chatId,
-            type: signal.type,
-            signalingData: {
-              offer: signal.offer,
-              initiatedBy: userId
-            }
-          });
-        }
-
-        if (!call) {
-          logCallEvent(isReconnectSignal ? 'reconnect dropped' : 'offer dropped', {
-            fromUserId: userId,
-            toUserId: targetUserId,
-            chatId: signal.chatId,
-            reason: 'call record unavailable'
-          });
-          if (typeof ack === 'function') ack({ ok: false, error: 'Call record unavailable' });
-          return;
-        }
+        });
 
         try {
           const logPath = path.join(process.cwd(), 'backend', 'logs');
           if (!fs.existsSync(logPath)) fs.mkdirSync(logPath, { recursive: true });
           const line = JSON.stringify({
             ts: new Date().toISOString(),
-            event: isReconnectSignal ? 'reconnect_received' : 'offer_received',
+            event: 'offer_received',
             fromUserId: userId,
             toUserId: targetUserId,
             callId: call.id,
@@ -368,13 +296,14 @@ export const initSocket = (server) => {
           type: signal.type,
           fromUserId: userId,
           fromUser: safeCaller,
-          offer: signal.offer,
-          renegotiate: isReconnectSignal
+          offer: signal.offer
         };
 
-        const delivered = emitToUserSafely(targetUserId, relayEvent, offerPayload).delivered;
+        const delivered = emitToUserSafely(targetUserId, 'call:offer', offerPayload).delivered;
+        emitToUserSafely(targetUserId, 'call:incoming', offerPayload);
+        emitToUserSafely(targetUserId, 'call-invite', offerPayload);
 
-        logCallEvent(isReconnectSignal ? 'reconnect received' : 'offer received', {
+        logCallEvent('offer received', {
           callId: call.id,
           fromUserId: userId,
           toUserId: targetUserId,
@@ -399,7 +328,7 @@ export const initSocket = (server) => {
     };
 
     socket.on('call:offer', handleCallOffer);
-    socket.on('call:reconnect', (payload = {}, ack) => handleCallOffer(payload, ack, { reconnect: true }));
+    socket.on('call:initiate', handleCallOffer);
 
     socket.on('call:answer', async (payload = {}) => {
       try {
@@ -469,6 +398,7 @@ export const initSocket = (server) => {
         });
 
         emitToUserSafely(targetUserId, 'call:answer', answerPayload);
+        emitToUserSafely(targetUserId, 'call:accepted', answerPayload);
       } catch (error) {
         console.error('[call] answer relay failed', {
           fromUserId: userId,
@@ -516,10 +446,10 @@ export const initSocket = (server) => {
         candidate: signal.candidate.candidate
       });
 
-      emitToUserSafely(targetUserId, 'call:ice', icePayload);
+      emitToUserSafely(targetUserId, 'call:ice-candidate', icePayload);
     };
 
-    socket.on('call:ice', handleIceCandidate);
+    socket.on('call:ice-candidate', handleIceCandidate);
 
     const handleCallReject = async (payload = {}) => {
       const signal = toPlainCallSignal(payload);
@@ -559,6 +489,11 @@ export const initSocket = (server) => {
         reason: signal.reason || 'rejected'
       });
 
+      emitToUserSafely(targetUserId, 'call:rejected', {
+        callId,
+        chatId: signal.chatId,
+        reason: signal.reason || 'rejected'
+      });
       emitToUserSafely(targetUserId, 'call:reject', {
         callId,
         chatId: signal.chatId,
@@ -567,6 +502,7 @@ export const initSocket = (server) => {
     };
 
     socket.on('call:reject', handleCallReject);
+    socket.on('call:rejected', handleCallReject);
 
     socket.on('call:end', async (payload = {}) => {
       const signal = toPlainCallSignal(payload);
@@ -597,6 +533,11 @@ export const initSocket = (server) => {
       });
 
       emitToUserSafely(targetUserId, 'call:end', {
+        callId,
+        chatId: signal.chatId,
+        reason: signal.reason || 'ended'
+      });
+      emitToUserSafely(targetUserId, 'call:ended', {
         callId,
         chatId: signal.chatId,
         reason: signal.reason || 'ended'
@@ -683,4 +624,4 @@ export const initSocket = (server) => {
   return io;
 };
 
-export default { initSocket, getIO, getSocketIdForUser, forceLogoutUser };
+export default { initSocket, getIO, getSocketIdForUser };

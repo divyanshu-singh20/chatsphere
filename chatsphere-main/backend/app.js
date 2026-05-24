@@ -11,7 +11,6 @@ import messageRoutes from './routes/messageRoutes.js';
 import groupRoutes from './routes/groupRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import callRoutes from './routes/callRoutes.js';
-import adminRoutes from './routes/adminRoutes.js';
 
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { getCorsDebugSummary, isAllowedClientOrigin } from './config/origins.js';
@@ -96,7 +95,6 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/calls', callRoutes);
-app.use('/api/admin', adminRoutes);
 
 /**
  * =========================

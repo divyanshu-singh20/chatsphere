@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FiMessageCircle, FiUser, FiSettings, FiLogOut, FiClock, FiShield } from 'react-icons/fi';
+import { FiMessageCircle, FiUser, FiSettings, FiLogOut, FiClock } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import useCall from '../hooks/useCall';
@@ -15,23 +15,19 @@ const buildAvatarUrl = (seed) => {
   return `${avatarBaseUrl}${encodeURIComponent(seed)}`;
 };
 
+const navItems = [
+  { to: '/chats', label: 'Chats', icon: FiMessageCircle },
+  { to: '/calls', label: 'Calls', icon: FiClock },
+  { to: '/profile', label: 'Profile', icon: FiUser },
+  { to: '/settings', label: 'Settings', icon: FiSettings }
+];
+
 export default function MainLayout() {
   const { user, logout } = useAuth();
   const { call, localStream, remoteStream, callDurationSeconds, soundBlocked, unlockCallSound, acceptCall, rejectCall, endCall, toggleMute, toggleCamera } = useCall();
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const previousPathRef = useRef(location.pathname);
-
-  const navItems = [
-    { to: '/chats', label: 'Chats', icon: FiMessageCircle },
-    { to: '/calls', label: 'Calls', icon: FiClock },
-    { to: '/profile', label: 'Profile', icon: FiUser },
-    { to: '/settings', label: 'Settings', icon: FiSettings }
-  ];
-
-  if (user?.role === 'admin') {
-    navItems.splice(3, 0, { to: '/admin/users', label: 'Admin', icon: FiShield });
-  }
 
   const getRouteIndex = (pathname) => {
     if (pathname.startsWith('/chat/')) return 0;

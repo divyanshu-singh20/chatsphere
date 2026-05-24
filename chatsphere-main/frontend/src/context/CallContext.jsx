@@ -11,6 +11,7 @@ import {
   toSerializableIceCandidate,
   stopMediaStream
 } from '../services/webrtc';
+import callSoundManager from '../utils/callSoundManager';
 import audioManager from '../utils/audioManager';
 import { useAuth } from './AuthContext';
 import { useChat } from '../hooks/useChat';
@@ -19,10 +20,14 @@ import CallContext from './call-state-context';
 const CALL_EVENTS = {
   OFFER: 'call:offer',
   ANSWER: 'call:answer',
-  ICE: 'call:ice',
+  ICE: 'call:ice-candidate',
   END: 'call:end',
   REJECT: 'call:reject',
-  RECONNECT: 'call:reconnect'
+  LEGACY_OFFER: 'call:initiate',
+  LEGACY_INCOMING: 'call:incoming',
+  LEGACY_INVITE: 'call-invite',
+  LEGACY_ANSWER: 'call:accepted',
+  LEGACY_REJECT: 'call:rejected'
 };
 
 const initialCallState = {
@@ -104,8 +109,6 @@ export function CallProvider({ children }) {
   const disconnectRecoveryTimeoutRef = useRef(null);
   const peerRecoveryAttemptRef = useRef(0);
   const recoverPeerConnectionRef = useRef(null);
-  const ringtoneAudioRef = useRef(null);
-  const ringtoneCallIdRef = useRef(null);
   const acceptingCallRef = useRef(false);
   const endingCallRef = useRef(false);
   const usersRef = useRef(users || []);
@@ -273,95 +276,6 @@ export function CallProvider({ children }) {
     socket.emit(event, payload);
   }, [logSocketEmit]);
 
-  const getRingtoneAudio = useCallback(() => {
-    if (typeof window === 'undefined') return null;
-
-    if (!ringtoneAudioRef.current) {
-      const audio = new Audio('/sounds/ringtone.mpeg');
-      audio.loop = true;
-      audio.preload = 'auto';
-      audio.playsInline = true;
-      audio.volume = 1;
-      ringtoneAudioRef.current = audio;
-    }
-
-    return ringtoneAudioRef.current;
-  }, []);
-
-  const stopRingtone = useCallback(() => {
-    const audio = ringtoneAudioRef.current;
-    ringtoneCallIdRef.current = null;
-
-    if (!audio) return;
-
-    try {
-      audio.pause();
-      audio.currentTime = 0;
-      audio.muted = false;
-    } catch (error) {
-      // ignore
-    }
-  }, []);
-
-  const playRingtone = useCallback(async (callId) => {
-    const audio = getRingtoneAudio();
-    if (!audio) return false;
-
-    if (ringtoneCallIdRef.current && ringtoneCallIdRef.current !== callId) {
-      stopRingtone();
-    }
-
-    if (ringtoneCallIdRef.current === callId && !audio.paused) {
-      return true;
-    }
-
-    ringtoneCallIdRef.current = callId || ringtoneCallIdRef.current || null;
-
-    try {
-      audio.loop = true;
-      audio.preload = 'auto';
-      audio.muted = false;
-      audio.currentTime = 0;
-      const result = audio.play();
-      if (result?.then) {
-        await result;
-      }
-      return true;
-    } catch (error) {
-      console.warn('[audio][ringtone-play-failed]', { error: error?.message || error, callId: callId || null });
-      return false;
-    }
-  }, [getRingtoneAudio, stopRingtone]);
-
-  const unlockRingtone = useCallback(async () => {
-    const audio = getRingtoneAudio();
-    if (!audio) return false;
-
-    try {
-      audio.loop = true;
-      audio.preload = 'auto';
-      audio.muted = true;
-      audio.currentTime = 0;
-      const result = audio.play();
-      if (result?.then) {
-        await result;
-      }
-      audio.pause();
-      audio.currentTime = 0;
-      audio.muted = false;
-      return true;
-    } catch (error) {
-      try {
-        audio.pause();
-        audio.currentTime = 0;
-        audio.muted = false;
-      } catch (pauseError) {
-        // ignore
-      }
-      return false;
-    }
-  }, [getRingtoneAudio]);
-
   const findPeerUser = useCallback((chat, currentUserId = user?.id) => {
     if (!chat) return null;
 
@@ -508,8 +422,6 @@ export function CallProvider({ children }) {
       // ignore
     }
 
-    stopRingtone();
-
     try {
       callSoundManager.stopAll();
     } catch (error) {
@@ -592,7 +504,7 @@ export function CallProvider({ children }) {
 
     // finalize
     resettingRef.current = false;
-  }, [clearDisconnectRecoveryTimeout, clearUnansweredCallTimeout, setCallState, stopRingtone]);
+  }, [clearDisconnectRecoveryTimeout, clearUnansweredCallTimeout, setCallState]);
 
   const markConnected = useCallback(() => {
     setCallState((current) => {
@@ -670,7 +582,6 @@ export function CallProvider({ children }) {
 
     if (state.connectionState === 'failed' || state.connectionState === 'closed') {
       clearDisconnectRecoveryTimeout();
-      stopRingtone();
       const recoveryPromise = recoverPeerConnectionRef.current?.(sessionId, state.connectionState);
       if (recoveryPromise?.then) {
         recoveryPromise.then((recovered) => {
@@ -686,7 +597,7 @@ export function CallProvider({ children }) {
       }
       return;
     }
-  }, [clearDisconnectRecoveryTimeout, markConnected, resetCallSession, setCallState, stopRingtone]);
+  }, [clearDisconnectRecoveryTimeout, markConnected, resetCallSession, setCallState]);
 
   const ensurePeerConnection = useCallback((sessionId) => {
     const existingPeer = peerRef.current;
@@ -785,7 +696,7 @@ export function CallProvider({ children }) {
       }
 
       const offer = await createOffer(peer, sessionId || current.callId || null, { iceRestart: true });
-      emitSocketEvent(socket, CALL_EVENTS.RECONNECT, {
+      emitSocketEvent(socket, CALL_EVENTS.OFFER, {
         targetUserId,
         chatId: current.chatId || null,
         type: current.type || 'voice',
@@ -1290,9 +1201,9 @@ export function CallProvider({ children }) {
       endedReason: null
     });
 
-    playRingtone(incomingCallId).then((played) => setSoundBlocked(!played)).catch(() => setSoundBlocked(true));
+    callSoundManager.playRingtone().then((played) => setSoundBlocked(!played)).catch(() => {});
     vibrateSafely([300, 200, 300]);
-  }, [attachPeerState, createAnswer, ensurePeerConnection, emitSocketEvent, findPeerUser, flushPendingIceCandidates, getLocalStream, playRingtone, setCallState, user?.id]);
+  }, [attachPeerState, createAnswer, ensurePeerConnection, emitSocketEvent, findPeerUser, flushPendingIceCandidates, getLocalStream, setCallState, user?.id]);
 
   const handleIncomingAnswer = useCallback(async (payload = {}) => {
     console.debug('[socket][receive]', {
@@ -1422,8 +1333,6 @@ export function CallProvider({ children }) {
     console.debug('[call][remote-reject]', { callId: payload.callId || null, reason: payload.reason || null });
     try { pushGlobalLog('call:remote-reject', { callId: payload.callId || null, reason: payload.reason || null }); } catch (e) {}
 
-    stopRingtone();
-
     if (!callStartedRef.current) return;
 
     if (payload.callId && currentCallRef.current.callId && payload.callId !== currentCallRef.current.callId) {
@@ -1437,7 +1346,7 @@ export function CallProvider({ children }) {
     }
 
     resetCallSession(payload.reason || 'rejected', { keepEndedState: false });
-  }, [resetCallSession, stopRingtone]);
+  }, [resetCallSession]);
 
   const handleIncomingEnd = useCallback((payload = {}) => {
     console.debug('[socket][receive]', {
@@ -1450,8 +1359,6 @@ export function CallProvider({ children }) {
     console.debug('[call][remote-end]', { callId: payload.callId || null, reason: payload.reason || null });
     try { pushGlobalLog('call:remote-end', { callId: payload.callId || null, reason: payload.reason || null }); } catch (e) {}
 
-    stopRingtone();
-
     if (!callStartedRef.current) return;
 
     if (payload.callId && currentCallRef.current.callId && payload.callId !== currentCallRef.current.callId) {
@@ -1459,7 +1366,7 @@ export function CallProvider({ children }) {
     }
 
     resetCallSession(payload.reason || 'ended', { keepEndedState: false });
-  }, [resetCallSession, stopRingtone]);
+  }, [resetCallSession]);
 
   const handleSocketDisconnect = useCallback((reason) => {
     console.debug('[socket][disconnect]', {
@@ -1467,8 +1374,6 @@ export function CallProvider({ children }) {
       callActive: callStartedRef.current,
       callId: currentCallRef.current.callId || null
     });
-
-    stopRingtone();
 
     if (callStartedRef.current) {
       clearDisconnectRecoveryTimeout();
@@ -1488,7 +1393,7 @@ export function CallProvider({ children }) {
         resetCallSession('disconnect', { keepEndedState: false });
       }, 12000);
     }
-  }, [clearDisconnectRecoveryTimeout, resetCallSession, stopRingtone]);
+  }, [clearDisconnectRecoveryTimeout, resetCallSession]);
 
   useEffect(() => {
     if (!user) {
@@ -1510,7 +1415,6 @@ export function CallProvider({ children }) {
 
     const listeners = [
       [CALL_EVENTS.OFFER, handleIncomingOffer],
-      [CALL_EVENTS.RECONNECT, handleIncomingOffer],
       [CALL_EVENTS.ANSWER, handleIncomingAnswer],
       [CALL_EVENTS.ICE, handleIncomingIce],
       [CALL_EVENTS.REJECT, handleIncomingReject],
@@ -1653,13 +1557,8 @@ export function CallProvider({ children }) {
     if (!user) return undefined;
 
     const unlockFromGesture = async () => {
-      const ok = await unlockRingtone();
+      const ok = await callSoundManager.unlock();
       setSoundBlocked(!ok);
-
-      if (ok && currentCallRef.current.status === 'ringing' && currentCallRef.current.isIncoming) {
-        const played = await playRingtone(currentCallRef.current.callId || pendingCallIdRef.current || null);
-        setSoundBlocked(!played);
-      }
     };
 
     window.addEventListener('pointerdown', unlockFromGesture, { once: true, passive: true });
@@ -1671,7 +1570,7 @@ export function CallProvider({ children }) {
       window.removeEventListener('touchstart', unlockFromGesture);
       window.removeEventListener('keydown', unlockFromGesture);
     };
-  }, [playRingtone, unlockRingtone, user]);
+  }, [user]);
 
   useEffect(() => {
     if (!call.connectedAt || (call.status !== 'connected' && call.status !== 'connecting')) {
@@ -1690,22 +1589,14 @@ export function CallProvider({ children }) {
 
   useEffect(() => () => {
     clearDisconnectRecoveryTimeout();
-    stopRingtone();
     resetCallSession('idle', { keepEndedState: false });
-  }, [clearDisconnectRecoveryTimeout, resetCallSession, stopRingtone]);
+  }, [clearDisconnectRecoveryTimeout, resetCallSession]);
 
   const unlockCallSound = useCallback(async () => {
-    const ok = await unlockRingtone();
+    const ok = await callSoundManager.unlock();
     setSoundBlocked(!ok);
-
-    if (ok && currentCallRef.current.status === 'ringing' && currentCallRef.current.isIncoming) {
-      const played = await playRingtone(currentCallRef.current.callId || pendingCallIdRef.current || null);
-      setSoundBlocked(!played);
-      return played;
-    }
-
     return ok;
-  }, [playRingtone, unlockRingtone]);
+  }, []);
 
   const value = useMemo(() => ({
     call,

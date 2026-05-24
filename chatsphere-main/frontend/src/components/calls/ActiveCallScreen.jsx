@@ -12,23 +12,23 @@ const formatDuration = (seconds = 0) => {
   return `${hours}:${minutes}:${remainingSeconds}`;
 };
 
-const StreamVideo = memo(({ stream, className }) => {
+const StreamVideo = memo(({ stream, muted, className }) => {
   const ref = useRef(null);
 
   useEffect(() => {
     const video = ref.current;
-    if (!video) return undefined;
+    if (!video) return;
 
     video.autoplay = true;
     video.playsInline = true;
-    video.muted = true;
+    video.muted = !!muted;
 
     if (!stream) {
       if (video.srcObject) {
         video.pause();
         video.srcObject = null;
       }
-      return undefined;
+      return;
     }
 
     if (video.srcObject !== stream) {
@@ -55,9 +55,9 @@ const StreamVideo = memo(({ stream, className }) => {
         video.srcObject = null;
       }
     };
-  }, [stream]);
+  }, [stream, muted]);
 
-  return <video ref={ref} autoPlay playsInline muted className={className} />;
+  return <video ref={ref} autoPlay playsInline muted={muted} className={className} />;
 });
 
 export default function ActiveCallScreen({ call, localStream, remoteStream, durationSeconds = 0, onToggleMute, onToggleCamera, onEnd }) {
@@ -84,7 +84,7 @@ export default function ActiveCallScreen({ call, localStream, remoteStream, dura
           {remoteStream ? <AudioPlayer stream={remoteStream} /> : null}
 
           {isVideo && remoteStream && (remoteStream.getVideoTracks?.() || []).length ? (
-            <StreamVideo stream={remoteStream} className="h-full w-full object-cover" />
+            <StreamVideo stream={remoteStream} muted={false} className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full items-center justify-center p-8 text-center">
               <div>
@@ -108,7 +108,7 @@ export default function ActiveCallScreen({ call, localStream, remoteStream, dura
 
           {localStream ? (
             <div className="absolute bottom-4 right-4 h-28 w-40 overflow-hidden rounded-2xl border border-[var(--wa-border)] bg-[rgba(10,10,10,0.94)] shadow-xl md:h-32 md:w-44">
-              {isVideo ? <StreamVideo stream={localStream} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-xs text-[var(--wa-text-secondary)]">Mic on</div>}
+              {isVideo ? <StreamVideo stream={localStream} muted className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-xs text-[var(--wa-text-secondary)]">Mic on</div>}
             </div>
           ) : null}
 

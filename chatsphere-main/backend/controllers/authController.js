@@ -6,7 +6,6 @@ import { signToken } from '../utils/jwt.js';
 import { uploadBuffer } from '../config/cloudinary.js';
 import { createNotification } from '../services/notificationService.js';
 import { User } from '../models/index.js';
-import { getAccountAccessMessage, isAccountBlocked, isAccountPending, normalizeAccountStatus, normalizeRole } from '../utils/accountAccess.js';
 
 const toSafeUser = (user) => ({
   id: user.id,
@@ -16,8 +15,7 @@ const toSafeUser = (user) => ({
   phoneNumber: user.phoneNumber,
   avatar: user.avatar,
   bio: user.bio,
-  status: normalizeAccountStatus(user.status),
-  role: normalizeRole(user.role),
+  status: user.status,
   isOnline: user.isOnline,
   lastSeenAt: user.lastSeenAt,
   createdAt: user.createdAt,
@@ -71,41 +69,22 @@ export const register = asyncHandler(async (req, res) => {
       }
     }
 
-    const user = await User.create({
-      fullName,
-      username,
-      email: normalizedEmail,
-      phoneNumber,
-      password: hashedPassword,
-      bio,
-      avatar: avatarUrl || null,
-      status: 'pending',
-      role: 'user'
-    });
+    const user = await User.create({ fullName, username, email: normalizedEmail, phoneNumber, password: hashedPassword, bio, avatar: avatarUrl || null });
+    const token = signToken({ id: user.id });
+    await createNotification({ userId: user.id, type: 'welcome', title: 'Welcome to ChatSphere', body: 'Your account is ready' });
 
-    const admins = await User.findAll({
-      where: { role: 'admin', isDeleted: false },
-      attributes: ['id', 'username']
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.cookie('token', token, {
+      httpOnly: true,
+      sameSite: isProduction ? 'none' : 'lax',
+      secure: isProduction,
+      maxAge: 7 * 24 * 60 * 60 * 1000
     });
-
-    await Promise.all(admins.map((admin) => createNotification({
-      userId: admin.id,
-      type: 'admin:user-pending',
-      title: 'New account waiting for approval',
-      body: `${user.fullName || user.username} registered and is waiting for review.`,
-      meta: {
-        userId: user.id,
-        username: user.username,
-        email: user.email,
-        phoneNumber: user.phoneNumber
-      }
-    }).catch(() => {})));
-
-    return res.status(201).json({
-      success: true,
-      message: 'Account created. Waiting for admin approval.',
-      user: toSafeUser(user)
+    console.log('[auth] cookie set', {
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax'
     });
+    return res.status(201).json({ token, user: toSafeUser(user) });
   } catch (error) {
     console.error('register error', error);
     return res.status(500).json({ success: false, message: error.message || 'Registration failed' });
@@ -123,16 +102,6 @@ export const login = asyncHandler(async (req, res) => {
     if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
-    const normalizedStatus = normalizeAccountStatus(user.status);
-
-    if (isAccountPending(normalizedStatus)) {
-      return res.status(403).json({ success: false, message: getAccountAccessMessage('pending') });
-    }
-
-    if (isAccountBlocked(normalizedStatus)) {
-      return res.status(403).json({ success: false, message: getAccountAccessMessage('blocked') });
-    }
-
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });

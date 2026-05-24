@@ -3,7 +3,6 @@ import { Op } from 'sequelize';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { uploadBuffer } from '../config/cloudinary.js';
 import { BlockedUser, StarredMessage, User } from '../models/index.js';
-import { normalizeAccountStatus, normalizeRole } from '../utils/accountAccess.js';
 
 const safeUser = (user) => ({
   id: user.id,
@@ -14,8 +13,7 @@ const safeUser = (user) => ({
   avatar: user.avatar,
   bio: user.bio,
   about: user.about,
-  status: normalizeAccountStatus(user.status),
-  role: normalizeRole(user.role),
+  status: user.status,
   isOnline: user.isOnline,
   lastSeenAt: user.lastSeenAt
 });
@@ -25,10 +23,11 @@ export const getProfile = asyncHandler(async (req, res) => {
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
-  const { fullName, bio, about } = req.body;
+  const { fullName, bio, about, status } = req.body;
   if (fullName) req.user.fullName = fullName;
   if (bio !== undefined) req.user.bio = bio;
   if (about !== undefined) req.user.about = about;
+  if (status !== undefined) req.user.status = status;
   if (req.file) {
     req.user.avatar = await uploadBuffer(req.file.buffer, req.file.mimetype, 'chatsphere/avatars');
   }
@@ -51,7 +50,6 @@ export const searchUsers = asyncHandler(async (req, res) => {
   const q = req.query.q || '';
   const users = await User.findAll({
     where: {
-      status: 'approved',
       [Op.or]: [
         { fullName: { [Op.like]: `%${q}%` } },
         { username: { [Op.like]: `%${q}%` } },
@@ -66,7 +64,8 @@ export const searchUsers = asyncHandler(async (req, res) => {
 
 export const listUsers = asyncHandler(async (req, res) => {
   const users = await User.findAll({
-    where: { isDeleted: false, status: 'approved' },
+    where: { isDeleted: false },
+    attributes: { exclude: ['password'] },
     order: [['fullName', 'ASC']]
 
     
