@@ -108,6 +108,7 @@ export function CallProvider({ children }) {
   const unansweredCallTimeoutRef = useRef(null);
   const disconnectRecoveryTimeoutRef = useRef(null);
   const peerRecoveryAttemptRef = useRef(0);
+  const recoverPeerConnectionRef = useRef(null);
   const acceptingCallRef = useRef(false);
   const endingCallRef = useRef(false);
   const usersRef = useRef(users || []);
@@ -260,6 +261,10 @@ export function CallProvider({ children }) {
     console.debug(`[${scope}][${event}]`, payload);
     pushGlobalLog(`${scope}:${event}`, payload);
   }, [pushGlobalLog]);
+
+  useEffect(() => {
+    recoverPeerConnectionRef.current = null;
+  }, []);
 
   const emitSocketEvent = useCallback((socket, event, payload, ack) => {
     logSocketEmit(event, payload);
@@ -577,17 +582,22 @@ export function CallProvider({ children }) {
 
     if (state.connectionState === 'failed' || state.connectionState === 'closed') {
       clearDisconnectRecoveryTimeout();
-      recoverPeerConnection(sessionId, state.connectionState).then((recovered) => {
-        if (!recovered) {
+      const recoveryPromise = recoverPeerConnectionRef.current?.(sessionId, state.connectionState);
+      if (recoveryPromise?.then) {
+        recoveryPromise.then((recovered) => {
+          if (!recovered) {
+            resetCallSession('connection-lost');
+          }
+        }).catch((error) => {
+          console.warn('[webrtc][recover] failed', { error: error?.message || error });
           resetCallSession('connection-lost');
-        }
-      }).catch((error) => {
-        console.warn('[webrtc][recover] failed', { error: error?.message || error });
+        });
+      } else {
         resetCallSession('connection-lost');
-      });
+      }
       return;
     }
-  }, [clearDisconnectRecoveryTimeout, markConnected, recoverPeerConnection, resetCallSession, setCallState]);
+  }, [clearDisconnectRecoveryTimeout, markConnected, resetCallSession, setCallState]);
 
   const ensurePeerConnection = useCallback((sessionId) => {
     const existingPeer = peerRef.current;
@@ -700,6 +710,10 @@ export function CallProvider({ children }) {
 
     return false;
   }, [attachPeerState, ensurePeerConnection, emitSocketEvent]);
+
+  useEffect(() => {
+    recoverPeerConnectionRef.current = recoverPeerConnection;
+  }, [recoverPeerConnection]);
 
   const endCall = useCallback((reason = 'ended') => {
     if (!callStartedRef.current) return;
