@@ -1,17 +1,19 @@
 import { lazy } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
+import AdminRoute from '../components/AdminRoute';
 import AuthLayout from '../layouts/AuthLayout';
 import MainLayout from '../layouts/MainLayout';
 
 const LoginPage = lazy(() => import('../pages/LoginPage'));
 const RegisterPage = lazy(() => import('../pages/RegisterPage'));
+const AdminLoginPage = lazy(() => import('../pages/AdminLoginPage'));
+const AdminDashboardPage = lazy(() => import('../pages/AdminDashboardPage'));
 const ChatPage = lazy(() => import('../pages/ChatPage'));
 const CallHistoryPage = lazy(() => import('../pages/CallHistoryPage'));
 const StatusPage = lazy(() => import('../pages/StatusPage'));
 const ProfilePage = lazy(() => import('../pages/ProfilePage'));
 const SettingsPage = lazy(() => import('../pages/SettingsPage'));
-const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 
 function LegacyChatRedirect() {
   const params = useParams();
@@ -21,10 +23,22 @@ function LegacyChatRedirect() {
 export default function AppRouter() {
   return (
     <Routes>
+      <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/admin/login" element={<AdminLoginPage />} />
       </Route>
+
+      <Route
+        path="/admin/dashboard"
+        element={
+          <AdminRoute>
+            <AdminDashboardPage />
+          </AdminRoute>
+        }
+      />
 
       <Route
         path="/"

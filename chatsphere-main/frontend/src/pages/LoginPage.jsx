@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [form, setForm] = useState({ identifier: '', password: '', rememberMe: true });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const notice = location.state?.notice;
 
   const validate = () => {
     const nextErrors = {};
@@ -39,6 +40,7 @@ export default function LoginPage() {
       <div className="mb-8">
         <h2 className="text-3xl font-semibold text-white">Welcome back</h2>
         <p className="mt-2 text-[var(--wa-text-secondary)]">Sign in to your ChatSphere workspace.</p>
+        {notice ? <p className="mt-4 rounded-2xl border border-[rgba(10,132,255,0.25)] bg-[rgba(10,132,255,0.12)] px-4 py-3 text-sm text-white">{notice}</p> : null}
       </div>
       <form onSubmit={submit} className="space-y-5">
         <FormField label="Email or phone" error={errors.identifier}>
@@ -55,7 +57,10 @@ export default function LoginPage() {
         </div>
         <PrimaryButton disabled={authBusy} className="w-full">{authBusy ? 'Signing in...' : 'Sign in'}</PrimaryButton>
         <div className="flex items-center justify-end text-sm text-[var(--wa-text-secondary)]">
-          <Link to="/register" className="hover:text-white">Create account</Link>
+          <div className="flex items-center gap-4">
+            <Link to="/admin/login" className="hover:text-white">Admin login</Link>
+            <Link to="/register" className="hover:text-white">Create account</Link>
+          </div>
         </div>
       </form>
     </motion.div>

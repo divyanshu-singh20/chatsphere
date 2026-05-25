@@ -175,6 +175,18 @@ const User = sequelize.define('User', {
     allowNull: false
   },
 
+  role: {
+    type: DataTypes.ENUM('user', 'admin'),
+    allowNull: false,
+    defaultValue: 'user'
+  },
+
+  status: {
+    type: DataTypes.ENUM('pending', 'approved', 'rejected', 'blocked'),
+    allowNull: false,
+    defaultValue: 'pending'
+  },
+
   avatar: {
     type: DataTypes.TEXT('long')
   },
@@ -185,11 +197,6 @@ const User = sequelize.define('User', {
 
   about: {
     type: DataTypes.TEXT
-  },
-
-  status: {
-    type: DataTypes.STRING(120),
-    defaultValue: 'Hey there! I am using ChatSphere.'
   },
 
   lastSeenAt: {

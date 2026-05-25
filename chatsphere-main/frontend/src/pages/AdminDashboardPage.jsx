@@ -1,0 +1,277 @@
+import { useEffect, useState } from 'react';
+import { FiCheckCircle, FiXCircle, FiSlash, FiLogOut } from 'react-icons/fi';
+import toast from 'react-hot-toast';
+import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import LoadingScreen from '../components/LoadingScreen';
+import StatCard from '../components/StatCard';
+
+const actionConfig = {
+  approve: {
+    label: 'Approve',
+    icon: FiCheckCircle,
+    className: 'bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/25'
+  },
+  reject: {
+    label: 'Reject',
+    icon: FiXCircle,
+    className: 'bg-amber-500/15 text-amber-200 hover:bg-amber-500/25'
+  },
+  block: {
+    label: 'Block',
+    icon: FiSlash,
+    className: 'bg-rose-500/15 text-rose-200 hover:bg-rose-500/25'
+  },
+  unblock: {
+    label: 'Unblock',
+    icon: FiCheckCircle,
+    className: 'bg-sky-500/15 text-sky-200 hover:bg-sky-500/25'
+  }
+};
+
+const statusTone = {
+  pending: 'bg-amber-500/15 text-amber-200',
+  approved: 'bg-emerald-500/15 text-emerald-200',
+  rejected: 'bg-slate-500/20 text-slate-200',
+  blocked: 'bg-rose-500/15 text-rose-200'
+};
+
+export default function AdminDashboardPage() {
+  const { user, logout } = useAuth();
+  const [dashboard, setDashboard] = useState(null);
+  const [pendingUsers, setPendingUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busyKey, setBusyKey] = useState('');
+
+  const loadDashboard = async () => {
+    const [dashboardResponse, pendingResponse] = await Promise.all([
+      api.get('/admin/dashboard'),
+      api.get('/admin/pending-users')
+    ]);
+
+    setDashboard(dashboardResponse.data.dashboard);
+    setPendingUsers(pendingResponse.data.users || []);
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const boot = async () => {
+      try {
+        const [dashboardResponse, pendingResponse] = await Promise.all([
+          api.get('/admin/dashboard'),
+          api.get('/admin/pending-users')
+        ]);
+
+        if (!mounted) return;
+
+        setDashboard(dashboardResponse.data.dashboard);
+        setPendingUsers(pendingResponse.data.users || []);
+      } catch (error) {
+        toast.error(error?.response?.data?.message || 'Failed to load admin dashboard');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    boot();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const runAction = async (action, userId) => {
+    console.log('admin action start', action, userId);
+    setBusyKey(`${action}:${userId}`);
+
+    // Optimistic update: remove the user from pending list immediately
+    const previousPending = pendingUsers;
+    setPendingUsers((list) => list.filter((u) => u.id !== userId));
+
+    try {
+      const { data } = await api.patch(`/admin/${action}/${userId}`);
+      toast.success(data?.message || 'User updated');
+
+      // Re-sync dashboard and pending users from server
+      try {
+        await loadDashboard();
+      } catch (e) {
+        console.warn('Failed to refresh dashboard after action', e?.message || e);
+      }
+    } catch (error) {
+      // revert optimistic update on failure
+      setPendingUsers(previousPending);
+      const msg = error?.response?.data?.message || 'Action failed';
+      toast.error(msg);
+      console.error('admin action failed', action, userId, error);
+    } finally {
+      setBusyKey('');
+    }
+  };
+
+  const getRecentUserAction = (recentUser) => {
+    if (recentUser.role === 'admin') return null;
+    if (recentUser.status === 'blocked') {
+      return 'unblock';
+    }
+
+    return 'block';
+  };
+
+  if (loading) {
+    return <LoadingScreen label="Loading admin dashboard" />;
+  }
+
+  return (
+    <div className="h-[100dvh] overflow-y-auto overflow-x-hidden bg-[radial-gradient(circle_at_top_left,rgba(10,132,255,0.18),transparent_30%),linear-gradient(180deg,rgba(8,8,8,1),rgba(14,14,14,1))] px-4 py-6 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6">
+        <header className="flex flex-col gap-4 rounded-[2rem] border border-[var(--wa-border)] bg-[rgba(16,16,16,0.9)] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-[var(--wa-primary)]">Admin console</p>
+            <h1 className="mt-2 text-3xl font-semibold text-white">Approval dashboard</h1>
+            <p className="mt-1 text-sm text-[var(--wa-text-secondary)]">Review pending registrations and keep the workspace clean.</p>
+          </div>
+          <div className="flex items-center gap-3 rounded-3xl border border-[var(--wa-border)] bg-[var(--wa-card-hover)] px-4 py-3">
+            <div className="h-10 w-10 rounded-full bg-[rgba(10,132,255,0.2)]" />
+            <div>
+              <p className="text-sm font-medium text-white">{user?.fullName || 'Admin'}</p>
+              <p className="text-xs text-[var(--wa-text-secondary)]">{user?.email || 'admin@chatapp.com'}</p>
+            </div>
+            <button onClick={() => logout()} className="ml-2 inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--wa-border)] text-[var(--wa-text-secondary)] transition hover:text-white">
+              <FiLogOut />
+            </button>
+          </div>
+        </header>
+
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <StatCard label="Total users" value={dashboard?.totalUsers ?? 0} />
+          <StatCard label="Pending" value={dashboard?.pendingUsers ?? 0} delta="Review now" />
+          <StatCard label="Approved" value={dashboard?.approvedUsers ?? 0} />
+          <StatCard label="Rejected" value={dashboard?.rejectedUsers ?? 0} />
+          <StatCard label="Blocked" value={dashboard?.blockedUsers ?? 0} />
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
+          <div className="rounded-[2rem] border border-[var(--wa-border)] bg-[rgba(16,16,16,0.9)] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.3)]">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold text-white">Pending approvals</h2>
+                <p className="mt-1 text-sm text-[var(--wa-text-secondary)]">New users stay locked until you approve them.</p>
+              </div>
+              <span className="rounded-full border border-[rgba(10,132,255,0.22)] bg-[rgba(10,132,255,0.12)] px-3 py-1 text-xs uppercase tracking-[0.28em] text-[var(--wa-primary)]">
+                {pendingUsers.length} waiting
+              </span>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {pendingUsers.length === 0 ? (
+                <div className="rounded-3xl border border-dashed border-[var(--wa-border)] bg-[var(--wa-card-hover)] p-8 text-center text-sm text-[var(--wa-text-secondary)]">
+                  No pending requests
+                </div>
+              ) : (
+                pendingUsers.map((pendingUser) => (
+                  <div key={pendingUser.id} className="rounded-3xl border border-[var(--wa-border)] bg-[var(--wa-card-hover)] p-4">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(10,132,255,0.16)] text-sm font-semibold text-white">
+                          {(pendingUser.fullName || pendingUser.username || '?').slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-white">{pendingUser.fullName}</p>
+                            <span className={`rounded-full px-2.5 py-1 text-[11px] uppercase tracking-[0.24em] ${statusTone[pendingUser.status] || statusTone.pending}`}>
+                              {pendingUser.status}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm text-[var(--wa-text-secondary)]">@{pendingUser.username} · {pendingUser.email}</p>
+                          <p className="mt-1 text-xs text-[var(--wa-text-secondary)]">Joined {new Date(pendingUser.createdAt).toLocaleString()}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(actionConfig).map(([action, config]) => {
+                          const Icon = config.icon;
+                          const busy = busyKey === `${action}:${pendingUser.id}`;
+
+                          const loadingTextMap = {
+                            approve: 'Approving...',
+                            reject: 'Rejecting...',
+                            block: 'Blocking...'
+                          };
+
+                          return (
+                            <button
+                              key={action}
+                              type="button"
+                              disabled={busy}
+                              onClick={() => runAction(action, pendingUser.id)}
+                              className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${config.className}`}
+                            >
+                              <Icon />
+                              {busy ? loadingTextMap[action] || 'Working...' : config.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-[var(--wa-border)] bg-[rgba(16,16,16,0.9)] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.3)]">
+            <h2 className="text-xl font-semibold text-white">Recent users</h2>
+            <p className="mt-1 text-sm text-[var(--wa-text-secondary)]">A quick view of the newest account activity.</p>
+
+            <div className="mt-5 space-y-3">
+              {(dashboard?.recentUsers || []).slice(0, 8).map((recentUser) => {
+                const recentAction = getRecentUserAction(recentUser);
+                const recentActionConfig = recentAction ? actionConfig[recentAction] : null;
+                const recentBusy = recentAction ? busyKey === `${recentAction}:${recentUser.id}` : false;
+
+                return (
+                  <div key={recentUser.id} className="rounded-3xl border border-[var(--wa-border)] bg-[var(--wa-card-hover)] p-4">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-white">{recentUser.fullName}</p>
+                          <span className={`rounded-full px-2.5 py-1 text-[11px] uppercase tracking-[0.24em] ${statusTone[recentUser.status] || statusTone.pending}`}>
+                            {recentUser.status}
+                          </span>
+                        </div>
+                        <p className="text-sm text-[var(--wa-text-secondary)]">@{recentUser.username} · {recentUser.email}</p>
+                      </div>
+
+                      {recentAction && recentActionConfig ? (
+                        (() => {
+                          const Icon = recentActionConfig.icon;
+                          return (
+                        <button
+                          type="button"
+                          disabled={recentBusy}
+                          onClick={() => runAction(recentAction, recentUser.id)}
+                          className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${recentActionConfig.className}`}
+                        >
+                          <Icon />
+                          {recentBusy ? (recentAction === 'unblock' ? 'Unblocking...' : 'Blocking...') : recentActionConfig.label}
+                        </button>
+                          );
+                        })()
+                      ) : (
+                        <span className="inline-flex items-center rounded-2xl border border-[var(--wa-border)] px-4 py-2 text-sm text-[var(--wa-text-secondary)]">
+                          No actions
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}

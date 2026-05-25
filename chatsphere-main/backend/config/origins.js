@@ -20,7 +20,7 @@ const isDevelopment = () => String(process.env.NODE_ENV || 'development').toLowe
 
 const isLocalhostOrigin = (origin) => {
   const normalizedOrigin = normalizeOrigin(origin);
-  if (!normalizedOrigin || !isDevelopment()) return false;
+  if (!normalizedOrigin) return false;
 
   try {
     const parsed = new URL(normalizedOrigin);
@@ -87,7 +87,7 @@ export const isAllowedClientOrigin = (origin) => {
   const config = getConfig();
 
   if (config.exactOrigins.includes(normalizedOrigin)) return true;
-  if (config.allowLocalhost && isLocalhostOrigin(normalizedOrigin)) return true;
+  if (isLocalhostOrigin(normalizedOrigin)) return true;
   if (isVercelOrigin(normalizedOrigin)) return true;
 
   return config.patternOrigins.some((pattern) => {

@@ -4,7 +4,6 @@ import { User } from '../models/index.js';
 
 export const protect = asyncHandler(async (req, res, next) => {
   try {
-    console.log('protect middleware auth header:', req.headers && (req.headers.authorization || req.headers.Authorization));
     let token = null;
     const authHeader = req.headers.authorization || req.headers.Authorization;
     if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
@@ -27,6 +26,16 @@ export const protect = asyncHandler(async (req, res, next) => {
     const user = await User.findByPk(decoded.id);
     if (!user || user.isDeleted) {
       return res.status(401).json({ success: false, message: 'Not authorized' });
+    }
+
+    if (user.role !== 'admin' && user.status !== 'approved') {
+      const reason = user.status === 'pending'
+        ? 'Your account is pending approval'
+        : user.status === 'rejected'
+          ? 'Your account was rejected'
+          : 'Your account has been blocked';
+
+      return res.status(403).json({ success: false, message: reason });
     }
 
     req.user = user;

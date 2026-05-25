@@ -177,6 +177,10 @@ export const initSocket = (server) => {
 
       if (!user) return next(new Error('Unauthorized'));
 
+      if (user.role !== 'admin' && user.status !== 'approved') {
+        return next(new Error('Unauthorized'));
+      }
+
       socket.user = user;
       next();
     } catch (error) {
@@ -272,22 +276,6 @@ export const initSocket = (server) => {
             initiatedBy: userId
           }
         });
-
-        try {
-          const logPath = path.join(process.cwd(), 'backend', 'logs');
-          if (!fs.existsSync(logPath)) fs.mkdirSync(logPath, { recursive: true });
-          const line = JSON.stringify({
-            ts: new Date().toISOString(),
-            event: 'offer_received',
-            fromUserId: userId,
-            toUserId: targetUserId,
-            callId: call.id,
-            targetSocketIdCandidate: targetSocketId
-          }) + '\n';
-          fs.appendFileSync(path.join(logPath, 'socket-debug.log'), line);
-        } catch (err) {
-          console.warn('[socket] file-log-failed', { err: err?.message || err });
-        }
 
         const safeCaller = userSnapshot;
         const offerPayload = {

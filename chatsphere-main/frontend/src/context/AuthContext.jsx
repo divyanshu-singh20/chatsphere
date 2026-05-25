@@ -23,6 +23,22 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [authBusy, setAuthBusy] = useState(false);
 
+  const handleAccountStatusChange = (payload) => {
+    if (!payload || payload.status === 'approved') return;
+
+    toast.error(payload.message || 'Your account status changed');
+    logout(false);
+  };
+
+  const syncSocketSession = (nextToken) => {
+    const socket = getSocket();
+    socket.auth = { token: nextToken };
+    socket.off('account:status-changed', handleAccountStatusChange);
+    socket.on('account:status-changed', handleAccountStatusChange);
+
+    if (!socket.connected) socket.connect();
+  };
+
   /**
    * =========================
    * VERIFY USER ON LOAD
@@ -49,10 +65,7 @@ export function AuthProvider({ children }) {
           JSON.stringify(data.user)
         );
 
-        const socket = getSocket();
-        socket.auth = { token: storedToken };
-
-        if (!socket.connected) socket.connect();
+        syncSocketSession(storedToken);
       } catch (err) {
         logout(false);
       } finally {
@@ -79,10 +92,7 @@ export function AuthProvider({ children }) {
       JSON.stringify(nextUser)
     );
 
-    const socket = getSocket();
-    socket.auth = { token: nextToken };
-
-    if (!socket.connected) socket.connect();
+    syncSocketSession(nextToken);
   };
 
   /**
@@ -114,9 +124,20 @@ export function AuthProvider({ children }) {
 
     try {
       const { data } = await api.post('/auth/register', payload);
+      return data;
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const adminLogin = async (payload) => {
+    setAuthBusy(true);
+
+    try {
+      const { data } = await api.post('/admin/login', payload);
       persistAuth(data.token, data.user);
 
-      toast.success('Account created');
+      toast.success('Admin access granted');
       return data;
     } finally {
       setAuthBusy(false);
@@ -154,6 +175,7 @@ export function AuthProvider({ children }) {
       loading,
       authBusy,
       login,
+      adminLogin,
       register,
       logout
     }),

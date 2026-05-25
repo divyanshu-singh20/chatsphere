@@ -4,23 +4,33 @@ import { Op } from 'sequelize';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { signToken } from '../utils/jwt.js';
 import { uploadBuffer } from '../config/cloudinary.js';
-import { createNotification } from '../services/notificationService.js';
 import { User } from '../models/index.js';
 
-const toSafeUser = (user) => ({
+export const toSafeUser = (user) => ({
   id: user.id,
   fullName: user.fullName,
   username: user.username,
   email: user.email,
   phoneNumber: user.phoneNumber,
+  role: user.role,
+  status: user.status,
   avatar: user.avatar,
   bio: user.bio,
-  status: user.status,
   isOnline: user.isOnline,
   lastSeenAt: user.lastSeenAt,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt
 });
+
+const getLoginRejectionMessage = (user) => {
+  if (user.role === 'admin') return 'Use admin login';
+  if (user.status === 'pending') return 'Your account is pending admin approval';
+  if (user.status === 'rejected') return 'Your account was rejected';
+  if (user.status === 'blocked') return 'Your account has been blocked';
+  return 'Account is not available';
+};
+
+const normalizeIdentifier = (value) => String(value || '').trim().toLowerCase();
 
 export const registerRules = [
   body('fullName').notEmpty().withMessage('Full name is required'),
@@ -69,22 +79,23 @@ export const register = asyncHandler(async (req, res) => {
       }
     }
 
-    const user = await User.create({ fullName, username, email: normalizedEmail, phoneNumber, password: hashedPassword, bio, avatar: avatarUrl || null });
-    const token = signToken({ id: user.id });
-    await createNotification({ userId: user.id, type: 'welcome', title: 'Welcome to ChatSphere', body: 'Your account is ready' });
+    const user = await User.create({
+      fullName,
+      username,
+      email: normalizedEmail,
+      phoneNumber,
+      password: hashedPassword,
+      bio,
+      avatar: avatarUrl || null,
+      role: 'user',
+      status: 'pending'
+    });
 
-    const isProduction = process.env.NODE_ENV === 'production';
-    res.cookie('token', token, {
-      httpOnly: true,
-      sameSite: isProduction ? 'none' : 'lax',
-      secure: isProduction,
-      maxAge: 7 * 24 * 60 * 60 * 1000
+    return res.status(201).json({
+      success: true,
+      message: 'Registration submitted. Wait for admin approval.',
+      user: toSafeUser(user)
     });
-    console.log('[auth] cookie set', {
-      secure: isProduction,
-      sameSite: isProduction ? 'none' : 'lax'
-    });
-    return res.status(201).json({ token, user: toSafeUser(user) });
   } catch (error) {
     console.error('register error', error);
     return res.status(500).json({ success: false, message: error.message || 'Registration failed' });
@@ -94,14 +105,31 @@ export const register = asyncHandler(async (req, res) => {
 export const login = asyncHandler(async (req, res) => {
   try {
     const { identifier, password } = req.body;
-    console.log('login body', req.body);
     if (!identifier || !password) {
       return res.status(400).json({ success: false, message: 'Missing credentials' });
     }
-    const user = await User.findOne({ where: { [Op.or]: [{ email: identifier }, { phoneNumber: identifier }] } });
+    const normalizedIdentifier = normalizeIdentifier(identifier);
+    const user = await User.findOne({
+      where: {
+        [Op.or]: [
+          { email: normalizedIdentifier },
+          { phoneNumber: String(identifier).trim() },
+          { username: String(identifier).trim() }
+        ]
+      }
+    });
     if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
+
+    if (user.role === 'admin') {
+      return res.status(403).json({ success: false, message: 'Use admin login' });
+    }
+
+    if (user.status !== 'approved') {
+      return res.status(403).json({ success: false, message: getLoginRejectionMessage(user) });
+    }
+
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
@@ -114,10 +142,6 @@ export const login = asyncHandler(async (req, res) => {
       sameSite: isProduction ? 'none' : 'lax',
       secure: isProduction,
       maxAge: 7 * 24 * 60 * 60 * 1000
-    });
-    console.log('[auth] cookie set', {
-      secure: isProduction,
-      sameSite: isProduction ? 'none' : 'lax'
     });
     return res.json({ token, user: toSafeUser(user) });
   } catch (error) {

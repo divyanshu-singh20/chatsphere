@@ -5,6 +5,7 @@ import app from './app.js';
 import { sequelize } from './models/index.js';
 import { initSocket } from './socket/index.js';
 import { getCorsDebugSummary } from './config/origins.js';
+import { ensureAuthSchema, ensureDefaultAdmin } from './utils/adminBootstrap.js';
 
 const BASE_PORT = Number(process.env.PORT);
 const isProduction = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
@@ -53,6 +54,22 @@ const logStartupDiagnostics = (port) => {
   });
 };
 
+const listenOnPort = (port) => new Promise((resolve, reject) => {
+  const handleListening = () => {
+    server.off('error', handleError);
+    resolve();
+  };
+
+  const handleError = (error) => {
+    server.off('listening', handleListening);
+    reject(error);
+  };
+
+  server.once('listening', handleListening);
+  server.once('error', handleError);
+  server.listen(port, '0.0.0.0');
+});
+
 /**
  * =========================
  * SOCKET INIT
@@ -75,17 +92,32 @@ const start = async () => {
     await sequelize.sync({ alter: false });
     console.log('✅ Models synced');
 
-    const port = isProduction ? BASE_PORT : await findAvailablePort(BASE_PORT);
+    await ensureAuthSchema();
+    await ensureDefaultAdmin();
+    console.log('✅ Admin auth schema ready');
 
-    if (isProduction && port !== BASE_PORT) {
-      console.warn('[startup][server] production port mismatch detected', { BASE_PORT, port });
+    let port = isProduction ? BASE_PORT : await findAvailablePort(BASE_PORT);
+
+    while (true) {
+      try {
+        if (isProduction && port !== BASE_PORT) {
+          console.warn('[startup][server] production port mismatch detected', { BASE_PORT, port });
+        }
+
+        logStartupDiagnostics(port);
+        await listenOnPort(port);
+        console.log(`🚀 ChatSphere server running on port ${port}`);
+        break;
+      } catch (err) {
+        if (err?.code === 'EADDRINUSE') {
+          console.warn(`⚠️ Port ${port} became busy during startup, trying ${port + 1}...`);
+          port += 1;
+          continue;
+        }
+
+        throw err;
+      }
     }
-
-    logStartupDiagnostics(port);
-
-    server.listen(port, '0.0.0.0', () => {
-      console.log(`🚀 ChatSphere server running on port ${port}`);
-    });
 
   } catch (err) {
     console.error('❌ Server startup error:', err);

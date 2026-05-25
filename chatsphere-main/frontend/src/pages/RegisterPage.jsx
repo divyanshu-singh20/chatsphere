@@ -67,8 +67,9 @@ export default function RegisterPage() {
         });
       }
 
-      await register(payload);
-      navigate('/app/chat', { replace: true });
+      const data = await register(payload);
+      toast.success(data?.message || 'Registration submitted. Wait for admin approval.');
+      navigate('/login', { replace: true, state: { notice: data?.message || 'Registration submitted. Wait for admin approval.' } });
     } catch (error) {
       toast.error(error?.response?.data?.message || 'Registration failed');
     }

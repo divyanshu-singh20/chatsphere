@@ -7,6 +7,18 @@ const seed = async () => {
   await sequelize.sync(reset ? { force: true } : {});
 
   const password = await bcrypt.hash('Password@123', 12);
+  const adminPassword = await bcrypt.hash('Admin@123', 12);
+
+  await User.create({
+    fullName: 'ChatSphere Admin',
+    username: 'admin',
+    email: 'admin@chatapp.com',
+    phoneNumber: '+10000000000',
+    password: adminPassword,
+    role: 'admin',
+    status: 'approved'
+  });
+
   const users = await User.bulkCreate([
     {
       fullName: 'Aarav Sharma',
@@ -14,6 +26,8 @@ const seed = async () => {
       email: 'aarav@chatsphere.app',
       phoneNumber: '+919999000001',
       password,
+      role: 'user',
+      status: 'approved',
       bio: 'Product designer and early adopter.',
       isOnline: true
     },
@@ -23,6 +37,8 @@ const seed = async () => {
       email: 'maya@chatsphere.app',
       phoneNumber: '+919999000002',
       password,
+      role: 'user',
+      status: 'approved',
       bio: 'Frontend engineer who loves real-time UX.'
     },
     {
@@ -31,6 +47,8 @@ const seed = async () => {
       email: 'kabir@chatsphere.app',
       phoneNumber: '+919999000003',
       password,
+      role: 'user',
+      status: 'approved',
       bio: 'Backend engineer and coffee enthusiast.'
     }
   ]);
