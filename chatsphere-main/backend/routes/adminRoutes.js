@@ -6,6 +6,7 @@ import {
   adminDashboard,
   adminLogin,
   adminLoginRules,
+  adminUsers,
   approveUser,
   blockUser,
   unblockUser,
@@ -17,6 +18,7 @@ const router = Router();
 
 router.post('/login', adminLoginRules, validateRequest, adminLogin);
 router.get('/dashboard', protect, requireAdmin, adminDashboard);
+router.get('/users', protect, requireAdmin, adminUsers);
 router.get('/pending-users', protect, requireAdmin, pendingUsers);
 router.patch('/approve/:id', protect, requireAdmin, approveUser);
 router.patch('/reject/:id', protect, requireAdmin, rejectUser);

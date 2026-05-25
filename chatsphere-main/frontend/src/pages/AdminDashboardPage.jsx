@@ -39,20 +39,21 @@ const statusTone = {
 export default function AdminDashboardPage() {
   const { user, logout } = useAuth();
   const [dashboard, setDashboard] = useState(null);
-  const [pendingUsers, setPendingUsers] = useState([]);
   const [userList, setUserList] = useState([]);
   const [activeFilter, setActiveFilter] = useState('pending');
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState('');
 
   const loadDashboard = async () => {
-    const [dashboardResponse, pendingResponse] = await Promise.all([
-      api.get('/admin/dashboard'),
-      api.get('/admin/pending-users')
-    ]);
+    const { data } = await api.get('/admin/dashboard');
+    setDashboard(data.dashboard);
+  };
 
-    setDashboard(dashboardResponse.data.dashboard);
-    setPendingUsers(pendingResponse.data.users || []);
+  const loadUsers = async (filter = activeFilter) => {
+    const params = filter && filter !== 'all' ? { status: filter } : undefined;
+    const { data } = await api.get('/admin/users', { params });
+    setUserList(data.users || []);
+    return data.users || [];
   };
 
   useEffect(() => {
@@ -60,28 +61,15 @@ export default function AdminDashboardPage() {
 
     const boot = async () => {
       try {
-        const [dashboardResponse, pendingResponse] = await Promise.all([
+        const [dashboardResponse, users] = await Promise.all([
           api.get('/admin/dashboard'),
-          api.get('/admin/pending-users')
+          api.get('/admin/users', { params: activeFilter && activeFilter !== 'all' ? { status: activeFilter } : undefined })
         ]);
 
         if (!mounted) return;
 
         setDashboard(dashboardResponse.data.dashboard);
-        setPendingUsers(pendingResponse.data.users || []);
-        // initialize userList based on default activeFilter
-        const combined = (dashboardResponse.data.dashboard?.recentUsers || []).map((u) => ({ ...u })) || [];
-        if (activeFilter === 'pending') {
-          setUserList(pendingResponse.data.users || []);
-        } else if (activeFilter === 'all') {
-          // merge pending + recent (de-dup by id)
-          const byId = {};
-          (pendingResponse.data.users || []).forEach((u) => (byId[u.id] = u));
-          combined.forEach((u) => (byId[u.id] = byId[u.id] || u));
-          setUserList(Object.values(byId));
-        } else {
-          setUserList(combined.filter((u) => u.status === activeFilter));
-        }
+        setUserList(users.data.users || []);
       } catch (error) {
         toast.error(error?.response?.data?.message || 'Failed to load admin dashboard');
       } finally {
@@ -100,9 +88,6 @@ export default function AdminDashboardPage() {
     console.log('admin action start', action, userId);
     setBusyKey(`${action}:${userId}`);
 
-    // Optimistic update: remove the user from pending list immediately if present
-    const previousPending = pendingUsers;
-    setPendingUsers((list) => list.filter((u) => u.id !== userId));
     const previousUserList = userList;
     setUserList((list) => list.map((u) => (u.id === userId ? { ...u, status: action === 'unblock' || action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : action === 'block' ? 'blocked' : u.status } : u)));
 
@@ -110,15 +95,14 @@ export default function AdminDashboardPage() {
       const { data } = await api.patch(`/admin/${action}/${userId}`);
       toast.success(data?.message || 'User updated');
 
-      // Re-sync dashboard and pending users from server
+      // Re-sync dashboard and the active filtered list from server
       try {
-        await loadDashboard();
+        await Promise.all([loadDashboard(), loadUsers(activeFilter)]);
       } catch (e) {
         console.warn('Failed to refresh dashboard after action', e?.message || e);
       }
     } catch (error) {
       // revert optimistic update on failure
-      setPendingUsers(previousPending);
       setUserList(previousUserList);
       const msg = error?.response?.data?.message || 'Action failed';
       toast.error(msg);
@@ -130,21 +114,9 @@ export default function AdminDashboardPage() {
 
   const handleFilterClick = (filter) => {
     setActiveFilter(filter);
-    // derive list for UI
-    if (filter === 'pending') {
-      setUserList(pendingUsers || []);
-      return;
-    }
-
-    const recent = (dashboard?.recentUsers || []).map((u) => ({ ...u }));
-    if (filter === 'all') {
-      const byId = {};
-      (pendingUsers || []).forEach((u) => (byId[u.id] = u));
-      recent.forEach((u) => (byId[u.id] = byId[u.id] || u));
-      setUserList(Object.values(byId));
-    } else {
-      setUserList(recent.filter((u) => u.status === filter));
-    }
+    loadUsers(filter).catch((error) => {
+      toast.error(error?.response?.data?.message || 'Failed to load users');
+    });
   };
 
   const getRecentUserAction = (recentUser) => {
@@ -197,7 +169,7 @@ export default function AdminDashboardPage() {
                 <p className="mt-1 text-sm text-[var(--wa-text-secondary)]">New users stay locked until you approve them.</p>
               </div>
               <span className="rounded-full border border-[rgba(10,132,255,0.22)] bg-[rgba(10,132,255,0.12)] px-3 py-1 text-xs uppercase tracking-[0.28em] text-[var(--wa-primary)]">
-                {pendingUsers.length} waiting
+                {dashboard?.pendingUsers ?? 0} waiting
               </span>
             </div>
 

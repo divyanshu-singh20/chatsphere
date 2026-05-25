@@ -16,6 +16,12 @@ export const adminLoginRules = [
 ];
 
 const normalizeIdentifier = (value) => String(value || '').trim().toLowerCase();
+const allowedStatuses = new Set(['pending', 'approved', 'rejected', 'blocked']);
+
+const normalizeStatusFilter = (value) => {
+  const status = String(value || '').trim().toLowerCase();
+  return allowedStatuses.has(status) ? status : null;
+};
 
 const setAuthCookie = (res, token) => {
   const isProduction = process.env.NODE_ENV === 'production';
@@ -123,6 +129,24 @@ export const adminDashboard = asyncHandler(async (req, res) => {
       recentUsers: recentUsers.map(toSafeUser),
       pendingList
     }
+  });
+});
+
+export const adminUsers = asyncHandler(async (req, res) => {
+  const statusFilter = normalizeStatusFilter(req.query.status);
+  const where = { role: 'user' };
+
+  if (statusFilter) {
+    where.status = statusFilter;
+  }
+
+  const users = await User.findAll({
+    where,
+    order: [['createdAt', 'DESC']]
+  });
+
+  return res.json({
+    users: users.map(toSafeUser)
   });
 });
 
