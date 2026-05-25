@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FiCheckCircle, FiXCircle, FiSlash, FiLogOut } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import LoadingScreen from '../components/LoadingScreen';
 import StatCard from '../components/StatCard';
+import { getSocket } from '../services/socket';
+import { SOCKET_EVENTS } from '../utils/constants';
 
 const actionConfig = {
   approve: {
@@ -43,6 +45,46 @@ export default function AdminDashboardPage() {
   const [activeFilter, setActiveFilter] = useState('pending');
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState('');
+
+  const dedupeUsersById = useCallback((list = []) => {
+    const seen = new Set();
+    return list.filter((entry) => {
+      const id = Number(entry?.id);
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  }, []);
+
+  const mergePendingUserIntoState = useCallback((payload) => {
+    const pendingUser = payload?.user || payload;
+    if (!pendingUser?.id) return;
+
+    const status = pendingUser.status || payload?.status || 'pending';
+    setDashboard((current) => {
+      if (!current) return current;
+
+      const isNewPending = status === 'pending';
+      const next = {
+        ...current,
+        totalUsers: isNewPending ? Number(current.totalUsers || 0) + 1 : current.totalUsers,
+        pendingUsers: isNewPending ? Number(current.pendingUsers || 0) + 1 : current.pendingUsers,
+        approvedUsers: current.approvedUsers,
+        rejectedUsers: current.rejectedUsers,
+        blockedUsers: current.blockedUsers,
+        recentUsers: dedupeUsersById([pendingUser, ...(current.recentUsers || [])]).slice(0, 12)
+      };
+      return next;
+    });
+
+    setUserList((current) => {
+      const nextUsers = [pendingUser, ...current.filter((entry) => Number(entry.id) !== Number(pendingUser.id))];
+      if (activeFilter && activeFilter !== 'all' && activeFilter !== status) {
+        return current;
+      }
+      return dedupeUsersById(nextUsers);
+    });
+  }, [activeFilter, dedupeUsersById]);
 
   const loadDashboard = async () => {
     const { data } = await api.get('/admin/dashboard');
@@ -84,6 +126,29 @@ export default function AdminDashboardPage() {
     };
   }, []);
 
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket.connected) {
+      const token = localStorage.getItem('chatsphere_token') || localStorage.getItem('token');
+      if (token) socket.auth = { token };
+      socket.connect();
+    }
+
+    const handlePendingUserAdded = (payload) => {
+      mergePendingUserIntoState(payload);
+    };
+
+    socket.off('pending-user-added');
+    socket.off('user:registered');
+    socket.on('pending-user-added', handlePendingUserAdded);
+    socket.on('user:registered', handlePendingUserAdded);
+
+    return () => {
+      socket.off('pending-user-added', handlePendingUserAdded);
+      socket.off('user:registered', handlePendingUserAdded);
+    };
+  }, [mergePendingUserIntoState]);
+
   const runAction = async (action, userId) => {
     console.log('admin action start', action, userId);
     setBusyKey(`${action}:${userId}`);
@@ -95,12 +160,33 @@ export default function AdminDashboardPage() {
       const { data } = await api.patch(`/admin/${action}/${userId}`);
       toast.success(data?.message || 'User updated');
 
-      // Re-sync dashboard and the active filtered list from server
-      try {
-        await Promise.all([loadDashboard(), loadUsers(activeFilter)]);
-      } catch (e) {
-        console.warn('Failed to refresh dashboard after action', e?.message || e);
-      }
+      setDashboard((current) => {
+        if (!current) return current;
+        const nextStatus = action === 'unblock' || action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : action === 'block' ? 'blocked' : undefined;
+        if (!nextStatus) return current;
+
+        const delta = {
+          pending: action === 'approve' || action === 'reject' || action === 'block' ? -1 : 0,
+          approved: action === 'approve' || action === 'unblock' ? 1 : action === 'block' ? -1 : 0,
+          rejected: action === 'reject' ? 1 : 0,
+          blocked: action === 'block' ? 1 : action === 'unblock' ? -1 : 0
+        };
+
+        return {
+          ...current,
+          pendingUsers: Math.max(0, Number(current.pendingUsers || 0) + delta.pending),
+          approvedUsers: Math.max(0, Number(current.approvedUsers || 0) + delta.approved),
+          rejectedUsers: Math.max(0, Number(current.rejectedUsers || 0) + delta.rejected),
+          blockedUsers: Math.max(0, Number(current.blockedUsers || 0) + delta.blocked)
+        };
+      });
+
+      setUserList((current) => {
+        const updated = current
+          .map((entry) => (Number(entry.id) === Number(userId) ? { ...entry, status: action === 'unblock' || action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'blocked' } : entry))
+          .filter((entry) => activeFilter === 'all' || activeFilter === entry.status);
+        return dedupeUsersById(updated);
+      });
     } catch (error) {
       // revert optimistic update on failure
       setUserList(previousUserList);

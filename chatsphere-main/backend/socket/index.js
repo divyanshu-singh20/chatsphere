@@ -240,6 +240,9 @@ export const initSocket = (server) => {
     }
 
     socket.join(`user:${userId}`);
+    if (socket.user.role === 'admin') {
+      socket.join('admins');
+    }
 
     User.update({ isOnline: true, lastSeenAt: null }, { where: { id: userId } }).catch(() => {});
     presenceService.setOnline(userId).catch(() => {});
@@ -247,14 +250,13 @@ export const initSocket = (server) => {
     io.emit('user:online', { userId, lastSeenAt: null });
     io.emit('online-users', SocketManager.getOnlineUserIds());
 
-      // Admin-triggered events can also target this socket server via controller emits.
-      socket.on('user:approved', (payload) => {
-        // forward to all connected clients the approved user info
-        io.emit('user:approved', payload);
-      });
-      socket.on('user:status-updated', (payload) => {
-        io.emit('user:status-updated', payload);
-      });
+    // Forward server-side admin status events to all connected clients.
+    socket.on('user:approved', (payload) => {
+      io.emit('user:approved', payload);
+    });
+    socket.on('user:status-updated', (payload) => {
+      io.emit('user:status-updated', payload);
+    });
 
     const handleCallOffer = async (payload = {}, ack) => {
       try {

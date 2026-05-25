@@ -5,6 +5,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { signToken } from '../utils/jwt.js';
 import { uploadBuffer } from '../config/cloudinary.js';
 import { User } from '../models/index.js';
+import { getIO } from '../socket/index.js';
 
 export const toSafeUser = (user) => ({
   id: user.id,
@@ -90,6 +91,13 @@ export const register = asyncHandler(async (req, res) => {
       role: 'user',
       status: 'pending'
     });
+
+    const io = getIO();
+    if (io) {
+      const payload = { user: toSafeUser(user), userId: user.id, status: 'pending', message: 'New user registered' };
+      io.to('admins').emit('pending-user-added', payload);
+      io.to('admins').emit('user:registered', payload);
+    }
 
     return res.status(201).json({
       success: true,
