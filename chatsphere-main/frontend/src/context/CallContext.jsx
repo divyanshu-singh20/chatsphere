@@ -108,6 +108,8 @@ export function CallProvider({ children }) {
   const unansweredCallTimeoutRef = useRef(null);
   const disconnectRecoveryTimeoutRef = useRef(null);
   const peerRecoveryAttemptRef = useRef(0);
+  const peerGenerationRef = useRef(0);
+  const appliedAnswerCallIdRef = useRef(null);
   const recoverPeerConnectionRef = useRef(null);
   const acceptingCallRef = useRef(false);
   const endingCallRef = useRef(false);
@@ -348,7 +350,12 @@ export function CallProvider({ children }) {
       sessionId,
       addLocalTracks(stream) {
         if (!peer || !stream) return;
-        stream.getTracks().forEach((track) => peer.addTrack(track, stream));
+        const existingTrackIds = new Set((peer.getSenders?.() || []).map((sender) => sender.track?.id).filter(Boolean));
+        stream.getTracks().forEach((track) => {
+          if (!track?.id || existingTrackIds.has(track.id)) return;
+          peer.addTrack(track, stream);
+          existingTrackIds.add(track.id);
+        });
         console.debug('[webrtc][track-added]', {
           sessionId: sessionId || null,
           source: 'local',
@@ -399,6 +406,7 @@ export function CallProvider({ children }) {
     }
 
     resettingRef.current = true;
+    peerGenerationRef.current += 1;
     const snapshot = currentCallRef.current;
 
     console.debug('[call][cleanup]', {
@@ -459,6 +467,7 @@ export function CallProvider({ children }) {
     seenIceCandidateKeysRef.current.clear();
     pendingOfferRef.current = null;
     pendingCallIdRef.current = null;
+    appliedAnswerCallIdRef.current = null;
     peerRecoveryAttemptRef.current = 0;
     cameraFacingRef.current = 'user';
     callStartedRef.current = false;
@@ -556,9 +565,10 @@ export function CallProvider({ children }) {
       ));
 
       clearDisconnectRecoveryTimeout();
+      const peerGeneration = peerGenerationRef.current;
       disconnectRecoveryTimeoutRef.current = window.setTimeout(() => {
         if (!callStartedRef.current) return;
-        if (currentCallRef.current.callId !== sessionId) return;
+        if (peerGenerationRef.current !== peerGeneration) return;
 
         console.warn('[webrtc][disconnect-timeout]', {
           sessionId: sessionId || null,
@@ -642,6 +652,7 @@ export function CallProvider({ children }) {
       onStateChange: (state) => handlePeerStateChange(state, sessionId)
     });
 
+    peerGenerationRef.current += 1;
     peerRef.current = peer;
     logCallLifecycle('call', 'peer-create', {
       sessionId: sessionId || null,
@@ -1206,9 +1217,11 @@ export function CallProvider({ children }) {
   }, [attachPeerState, createAnswer, ensurePeerConnection, emitSocketEvent, findPeerUser, flushPendingIceCandidates, getLocalStream, setCallState, user?.id]);
 
   const handleIncomingAnswer = useCallback(async (payload = {}) => {
+    const answerCallId = payload.callId || currentCallRef.current.callId || pendingCallIdRef.current || null;
+
     console.debug('[socket][receive]', {
       event: CALL_EVENTS.ANSWER,
-      callId: payload.callId || null,
+      callId: answerCallId,
       chatId: payload.chatId || null,
       hasAnswer: !!payload.answer,
       answerType: payload.answer?.type || null
@@ -1216,9 +1229,17 @@ export function CallProvider({ children }) {
 
     if (!payload?.answer) return;
     if (!callStartedRef.current) return;
+    if (answerCallId && appliedAnswerCallIdRef.current === answerCallId) {
+      console.debug('[webrtc][duplicate-answer-ignored]', {
+        callId: answerCallId,
+        chatId: payload.chatId || null
+      });
+      clearUnansweredCallTimeout();
+      return;
+    }
 
     console.debug('[webrtc][answer-received]', {
-      callId: payload.callId || null,
+      callId: answerCallId,
       chatId: payload.chatId || null,
       answerType: payload.answer?.type || null,
       answerSdpLength: payload.answer?.sdp?.length || 0
@@ -1242,23 +1263,29 @@ export function CallProvider({ children }) {
     }
 
     try {
-      const applied = await handleRemoteAnswer(peer, payload.answer, payload.callId || currentCallRef.current.callId || null);
+      appliedAnswerCallIdRef.current = answerCallId;
+
+      const applied = await handleRemoteAnswer(peer, payload.answer, answerCallId);
       if (!applied) return;
 
-      await flushPendingIceCandidates(peer, payload.callId || currentCallRef.current.callId || null);
+      await flushPendingIceCandidates(peer, answerCallId);
       clearUnansweredCallTimeout();
       logCallLifecycle('call', 'answer', {
-        callId: payload.callId || currentCallRef.current.callId || null
+        callId: answerCallId
       });
 
       setCallState((current) => ({
         ...current,
         status: 'connecting',
-        callId: payload.callId || current.callId || pendingCallIdRef.current || null
+        callId: answerCallId || current.callId || pendingCallIdRef.current || null
       }));
     } catch (error) {
       console.error('[webrtc] remote answer failed', error);
       resetCallSession('failed', { keepEndedState: false });
+    } finally {
+      if (appliedAnswerCallIdRef.current === answerCallId) {
+        appliedAnswerCallIdRef.current = null;
+      }
     }
   }, [clearUnansweredCallTimeout, resetCallSession, setCallState]);
 
@@ -1415,9 +1442,14 @@ export function CallProvider({ children }) {
 
     const listeners = [
       [CALL_EVENTS.OFFER, handleIncomingOffer],
+      [CALL_EVENTS.LEGACY_INCOMING, handleIncomingOffer],
+      ['incoming-call', handleIncomingOffer],
+      ['call-invite', handleIncomingOffer],
       [CALL_EVENTS.ANSWER, handleIncomingAnswer],
+      [CALL_EVENTS.LEGACY_ANSWER, handleIncomingAnswer],
       [CALL_EVENTS.ICE, handleIncomingIce],
       [CALL_EVENTS.REJECT, handleIncomingReject],
+      [CALL_EVENTS.LEGACY_REJECT, handleIncomingReject],
       [CALL_EVENTS.END, handleIncomingEnd]
     ];
 
