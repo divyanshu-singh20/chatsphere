@@ -91,19 +91,35 @@ Backend:
 
 ## Deployment
 
-Frontend:
+Use this verified production config as the single reference for deployment env values.
 
-- Deploy the Vite build to Vercel.
-- Set `VITE_API_URL` and `VITE_SOCKET_URL` to your backend URL.
+Frontend on Vercel:
 
-Backend:
+- `VITE_API_URL=https://chatsphere-thpl.onrender.com/api`
+- `VITE_SOCKET_URL=https://chatsphere-thpl.onrender.com`
 
-- Deploy to Render or Railway.
-- Point `CLIENT_URL` to the deployed frontend URL.
+Backend on Render:
+
+- `CLIENT_URL=https://chatsphere-rose.vercel.app`
+- `CLIENT_ORIGIN_PATTERNS=https://*.vercel.app,http://localhost:*,http://127.0.0.1:*`
+- `RENDER_EXTERNAL_URL=https://chatsphere-thpl.onrender.com`
+
+Behavior notes:
+
+- `frontend/src/config/runtime.js` reads only `VITE_API_URL` and `VITE_SOCKET_URL`.
+- `frontend/src/services/api.js` uses `VITE_API_URL` and appends `/api` only when needed.
+- `frontend/src/services/socket.js` uses `VITE_SOCKET_URL` for the Socket.IO client.
+- `backend/config/origins.js` shares the same origin rules for Express CORS and Socket.IO CORS.
+- Localhost remains allowed only through the shared origin helper and the local Vite env files.
+
+The rest of the backend deployment requirements remain the same:
+
+- Deploy the frontend build to Vercel.
+- Deploy the backend to Render.
 - Provide MySQL hosting credentials.
 - Set Cloudinary credentials.
-- Set SMTP credentials for a transactional mail provider. For production delivery on Render, use a provider that exposes SMTP access reliably (for example Brevo, MailerSend, or SendGrid SMTP) and configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM`.
-- If you are comparing Gmail SMTP variants, test `smtp.gmail.com:465` with `SMTP_SECURE=true` and `smtp.gmail.com:587` with `SMTP_SECURE=false`. If both time out on Render, the issue is the transport/network path, not the OTP flow.
+- Set SMTP credentials for your transactional mail provider.
+- For Gmail SMTP on Render, test `smtp.gmail.com:465` with `SMTP_SECURE=true` and `smtp.gmail.com:587` with `SMTP_SECURE=false`.
 
 ## Notes
 

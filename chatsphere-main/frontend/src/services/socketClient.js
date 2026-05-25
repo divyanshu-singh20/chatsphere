@@ -1,10 +1,13 @@
 import { io } from 'socket.io-client';
+import { getSocketUrl } from '../config/runtime';
 
 let socket = null;
 let urlCache = null;
 
 export function initSocket(url = undefined, opts = {}) {
-  if (!url) url = import.meta.env.VITE_SOCKET_URL || window.location.origin;
+  if (!url) url = getSocketUrl();
+  console.info('[runtime] Socket URL', url);
+  if (!url) throw new Error('VITE_SOCKET_URL is required');
   // Avoid re-init with different url
   if (socket && url === urlCache) return socket;
   if (socket) {

@@ -43,6 +43,7 @@ const getSocketStore = () => {
 
 const resolveSocketUrl = () => {
   const explicit = getSocketUrl();
+  console.info('[runtime] Socket URL', explicit);
   if (!explicit) {
     throw new Error('VITE_SOCKET_URL is required');
   }

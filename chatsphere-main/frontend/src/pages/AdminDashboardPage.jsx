@@ -40,6 +40,8 @@ export default function AdminDashboardPage() {
   const { user, logout } = useAuth();
   const [dashboard, setDashboard] = useState(null);
   const [pendingUsers, setPendingUsers] = useState([]);
+  const [userList, setUserList] = useState([]);
+  const [activeFilter, setActiveFilter] = useState('pending');
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState('');
 
@@ -67,6 +69,19 @@ export default function AdminDashboardPage() {
 
         setDashboard(dashboardResponse.data.dashboard);
         setPendingUsers(pendingResponse.data.users || []);
+        // initialize userList based on default activeFilter
+        const combined = (dashboardResponse.data.dashboard?.recentUsers || []).map((u) => ({ ...u })) || [];
+        if (activeFilter === 'pending') {
+          setUserList(pendingResponse.data.users || []);
+        } else if (activeFilter === 'all') {
+          // merge pending + recent (de-dup by id)
+          const byId = {};
+          (pendingResponse.data.users || []).forEach((u) => (byId[u.id] = u));
+          combined.forEach((u) => (byId[u.id] = byId[u.id] || u));
+          setUserList(Object.values(byId));
+        } else {
+          setUserList(combined.filter((u) => u.status === activeFilter));
+        }
       } catch (error) {
         toast.error(error?.response?.data?.message || 'Failed to load admin dashboard');
       } finally {
@@ -85,9 +100,11 @@ export default function AdminDashboardPage() {
     console.log('admin action start', action, userId);
     setBusyKey(`${action}:${userId}`);
 
-    // Optimistic update: remove the user from pending list immediately
+    // Optimistic update: remove the user from pending list immediately if present
     const previousPending = pendingUsers;
     setPendingUsers((list) => list.filter((u) => u.id !== userId));
+    const previousUserList = userList;
+    setUserList((list) => list.map((u) => (u.id === userId ? { ...u, status: action === 'unblock' || action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : action === 'block' ? 'blocked' : u.status } : u)));
 
     try {
       const { data } = await api.patch(`/admin/${action}/${userId}`);
@@ -102,11 +119,31 @@ export default function AdminDashboardPage() {
     } catch (error) {
       // revert optimistic update on failure
       setPendingUsers(previousPending);
+      setUserList(previousUserList);
       const msg = error?.response?.data?.message || 'Action failed';
       toast.error(msg);
       console.error('admin action failed', action, userId, error);
     } finally {
       setBusyKey('');
+    }
+  };
+
+  const handleFilterClick = (filter) => {
+    setActiveFilter(filter);
+    // derive list for UI
+    if (filter === 'pending') {
+      setUserList(pendingUsers || []);
+      return;
+    }
+
+    const recent = (dashboard?.recentUsers || []).map((u) => ({ ...u }));
+    if (filter === 'all') {
+      const byId = {};
+      (pendingUsers || []).forEach((u) => (byId[u.id] = u));
+      recent.forEach((u) => (byId[u.id] = byId[u.id] || u));
+      setUserList(Object.values(byId));
+    } else {
+      setUserList(recent.filter((u) => u.status === filter));
     }
   };
 
@@ -145,11 +182,11 @@ export default function AdminDashboardPage() {
         </header>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <StatCard label="Total users" value={dashboard?.totalUsers ?? 0} />
-          <StatCard label="Pending" value={dashboard?.pendingUsers ?? 0} delta="Review now" />
-          <StatCard label="Approved" value={dashboard?.approvedUsers ?? 0} />
-          <StatCard label="Rejected" value={dashboard?.rejectedUsers ?? 0} />
-          <StatCard label="Blocked" value={dashboard?.blockedUsers ?? 0} />
+          <StatCard label="Total users" value={dashboard?.totalUsers ?? 0} onClick={() => handleFilterClick('all')} active={activeFilter === 'all'} />
+          <StatCard label="Pending" value={dashboard?.pendingUsers ?? 0} delta="Review now" onClick={() => handleFilterClick('pending')} active={activeFilter === 'pending'} />
+          <StatCard label="Approved" value={dashboard?.approvedUsers ?? 0} onClick={() => handleFilterClick('approved')} active={activeFilter === 'approved'} />
+          <StatCard label="Rejected" value={dashboard?.rejectedUsers ?? 0} onClick={() => handleFilterClick('rejected')} active={activeFilter === 'rejected'} />
+          <StatCard label="Blocked" value={dashboard?.blockedUsers ?? 0} onClick={() => handleFilterClick('blocked')} active={activeFilter === 'blocked'} />
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
@@ -165,54 +202,103 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="mt-5 space-y-3">
-              {pendingUsers.length === 0 ? (
+              {userList.length === 0 ? (
                 <div className="rounded-3xl border border-dashed border-[var(--wa-border)] bg-[var(--wa-card-hover)] p-8 text-center text-sm text-[var(--wa-text-secondary)]">
-                  No pending requests
+                  No users match this filter
                 </div>
               ) : (
-                pendingUsers.map((pendingUser) => (
-                  <div key={pendingUser.id} className="rounded-3xl border border-[var(--wa-border)] bg-[var(--wa-card-hover)] p-4">
+                userList.map((u) => (
+                  <div key={u.id} className="rounded-3xl border border-[var(--wa-border)] bg-[var(--wa-card-hover)] p-4">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                       <div className="flex items-center gap-4">
                         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(10,132,255,0.16)] text-sm font-semibold text-white">
-                          {(pendingUser.fullName || pendingUser.username || '?').slice(0, 2).toUpperCase()}
+                          {(u.fullName || u.username || '?').slice(0, 2).toUpperCase()}
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <p className="font-medium text-white">{pendingUser.fullName}</p>
-                            <span className={`rounded-full px-2.5 py-1 text-[11px] uppercase tracking-[0.24em] ${statusTone[pendingUser.status] || statusTone.pending}`}>
-                              {pendingUser.status}
+                            <p className="font-medium text-white">{u.fullName}</p>
+                            <span className={`rounded-full px-2.5 py-1 text-[11px] uppercase tracking-[0.24em] ${statusTone[u.status] || statusTone.pending}`}>
+                              {u.status}
                             </span>
                           </div>
-                          <p className="mt-1 text-sm text-[var(--wa-text-secondary)]">@{pendingUser.username} · {pendingUser.email}</p>
-                          <p className="mt-1 text-xs text-[var(--wa-text-secondary)]">Joined {new Date(pendingUser.createdAt).toLocaleString()}</p>
+                          <p className="mt-1 text-sm text-[var(--wa-text-secondary)]">@{u.username} · {u.email}</p>
+                          <p className="mt-1 text-xs text-[var(--wa-text-secondary)]">Joined {new Date(u.createdAt).toLocaleString()}</p>
                         </div>
                       </div>
 
                       <div className="flex flex-wrap gap-2">
-                        {Object.entries(actionConfig).map(([action, config]) => {
-                          const Icon = config.icon;
-                          const busy = busyKey === `${action}:${pendingUser.id}`;
-
-                          const loadingTextMap = {
-                            approve: 'Approving...',
-                            reject: 'Rejecting...',
-                            block: 'Blocking...'
-                          };
-
-                          return (
+                        {/** actions depend on status */}
+                        {u.status === 'pending' && (
+                          <>
                             <button
-                              key={action}
                               type="button"
-                              disabled={busy}
-                              onClick={() => runAction(action, pendingUser.id)}
-                              className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${config.className}`}
-                            >
-                              <Icon />
-                              {busy ? loadingTextMap[action] || 'Working...' : config.label}
+                              disabled={busyKey === `approve:${u.id}`}
+                              onClick={() => runAction('approve', u.id)}
+                              className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${actionConfig.approve.className}`}>
+                              {(() => { const Icon = actionConfig.approve.icon; return <Icon />; })()}
+                              {busyKey === `approve:${u.id}` ? 'Approving...' : actionConfig.approve.label}
                             </button>
-                          );
-                        })}
+                            <button
+                              type="button"
+                              disabled={busyKey === `reject:${u.id}`}
+                              onClick={() => runAction('reject', u.id)}
+                              className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${actionConfig.reject.className}`}>
+                              {(() => { const Icon = actionConfig.reject.icon; return <Icon />; })()}
+                              {busyKey === `reject:${u.id}` ? 'Rejecting...' : actionConfig.reject.label}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busyKey === `block:${u.id}`}
+                              onClick={() => runAction('block', u.id)}
+                              className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${actionConfig.block.className}`}>
+                              {(() => { const Icon = actionConfig.block.icon; return <Icon />; })()}
+                              {busyKey === `block:${u.id}` ? 'Blocking...' : actionConfig.block.label}
+                            </button>
+                          </>
+                        )}
+
+                        {u.status === 'approved' && (
+                          <button
+                            type="button"
+                            disabled={busyKey === `block:${u.id}`}
+                            onClick={() => runAction('block', u.id)}
+                            className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${actionConfig.block.className}`}>
+                            {(() => { const Icon = actionConfig.block.icon; return <Icon />; })()}
+                            {busyKey === `block:${u.id}` ? 'Blocking...' : actionConfig.block.label}
+                          </button>
+                        )}
+
+                        {u.status === 'rejected' && (
+                          <>
+                            <button
+                              type="button"
+                              disabled={busyKey === `approve:${u.id}`}
+                              onClick={() => runAction('approve', u.id)}
+                              className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${actionConfig.approve.className}`}>
+                              {(() => { const Icon = actionConfig.approve.icon; return <Icon />; })()}
+                              {busyKey === `approve:${u.id}` ? 'Approving...' : actionConfig.approve.label}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busyKey === `block:${u.id}`}
+                              onClick={() => runAction('block', u.id)}
+                              className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${actionConfig.block.className}`}>
+                              {(() => { const Icon = actionConfig.block.icon; return <Icon />; })()}
+                              {busyKey === `block:${u.id}` ? 'Blocking...' : actionConfig.block.label}
+                            </button>
+                          </>
+                        )}
+
+                        {u.status === 'blocked' && (
+                          <button
+                            type="button"
+                            disabled={busyKey === `unblock:${u.id}`}
+                            onClick={() => runAction('unblock', u.id)}
+                            className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${actionConfig.unblock.className}`}>
+                            {(() => { const Icon = actionConfig.unblock.icon; return <Icon />; })()}
+                            {busyKey === `unblock:${u.id}` ? 'Unblocking...' : actionConfig.unblock.label}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

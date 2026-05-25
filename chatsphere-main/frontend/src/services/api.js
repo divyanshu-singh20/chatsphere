@@ -3,6 +3,8 @@ import { getApiBaseUrl } from '../config/runtime';
 
 const normalizedApiBaseUrl = getApiBaseUrl();
 
+console.info('[runtime] API URL', normalizedApiBaseUrl);
+
 if (!normalizedApiBaseUrl) {
   throw new Error('VITE_API_URL is required');
 }
