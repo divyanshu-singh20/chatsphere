@@ -25,6 +25,7 @@ export function ChatProvider({ children }) {
   const handledClientMsgIdsRef = useRef(new Set());
   const notificationCooldownRef = useRef(new Map());
   const listenersAttachedRef = useRef(false);
+  const [replyingToMessage, setReplyingToMessage] = useState(null);
 
   const dedupeUsersById = useCallback((list = []) => {
     const seen = new Set();
@@ -129,6 +130,27 @@ export function ChatProvider({ children }) {
     }
   };
 
+  const mergeMessageRecord = useCallback((current = [], nextMessage) => {
+    if (!nextMessage?.id) return current;
+    const nextId = Number(nextMessage.id);
+    const exists = current.some((message) => Number(message?.id) === nextId);
+    if (!exists) return [...current, nextMessage];
+    return current.map((message) => (Number(message?.id) === nextId ? { ...message, ...nextMessage } : message));
+  }, []);
+
+  const patchMessagesInChat = useCallback((chatId, patcher) => {
+    setMessages((current) => current.map((message) => {
+      if (Number(message.chatId) !== Number(chatId)) return message;
+      return patcher(message);
+    }));
+  }, []);
+
+  const patchMessageById = useCallback((messageId, patcher) => {
+    setMessages((current) => current.map((message) => (
+      Number(message.id) === Number(messageId) ? patcher(message) : message
+    )));
+  }, []);
+
   const showBrowserNotification = (message) => {
     try {
       if (!('Notification' in window)) return;
@@ -181,6 +203,15 @@ export function ChatProvider({ children }) {
     }
   }, [mergeChatsUnique, sortChatsByUpdatedAt]);
 
+  const markChatSeen = useCallback(async (chatId) => {
+    if (!chatId) return;
+    try {
+      await api.patch(`/messages/${chatId}/seen`, { chatId });
+    } catch (error) {
+      console.warn('failed to mark chat seen', error?.message || error);
+    }
+  }, []);
+
   const loadUsers = useCallback(async () => {
     setLoadingUsers(true);
     try {
@@ -228,8 +259,17 @@ export function ChatProvider({ children }) {
     // If active chat, append to messages
     if (isActiveChat) {
       setMessages((current) => {
-        if (current.some((entry) => entry.id === message.id)) return current;
-        return [...current, message];
+        const next = current.map((entry) => {
+          if (message.clientMsgId && entry.clientMsgId === message.clientMsgId) {
+            return { ...entry, ...message, id: message.id };
+          }
+          if (entry.id && message.id && Number(entry.id) === Number(message.id)) {
+            return { ...entry, ...message };
+          }
+          return entry;
+        });
+        if (next.some((entry) => Number(entry.id) === Number(message.id))) return next;
+        return [...next, message];
       });
     } else if (!isOwnMessage) {
       // not active, notify user
@@ -278,6 +318,71 @@ export function ChatProvider({ children }) {
     };
     const handleSidebarUpdate = (payload) => {
       if (payload?.message) bumpChat(payload.message, 0);
+    };
+    const handleMessageDelivered = (payload) => {
+      if (!payload) return;
+      const chatId = Number(payload.chatId || payload.message?.chatId);
+      const messageId = payload.messageId || payload.message?.id || null;
+      const deliveredAt = payload.deliveredAt || new Date().toISOString();
+      if (messageId) {
+        patchMessageById(messageId, (message) => ({ ...message, status: 'delivered', deliveredAt }));
+      } else if (chatId) {
+        patchMessagesInChat(chatId, (message) => (
+          Number(message.senderId) === Number(user?.id)
+            ? { ...message, status: 'delivered', deliveredAt }
+            : message
+        ));
+      }
+    };
+    const handleMessageSeen = (payload) => {
+      if (!payload) return;
+      const chatId = Number(payload.chatId || payload.message?.chatId);
+      const seenAt = payload.seenAt || new Date().toISOString();
+      patchMessagesInChat(chatId, (message) => (
+        Number(message.senderId) === Number(user?.id)
+          ? { ...message, status: 'seen', seenAt }
+          : message
+      ));
+    };
+    const handleMessageEdited = (payload) => {
+      if (!payload?.id) return;
+      patchMessageById(payload.id, (message) => ({ ...message, ...payload }));
+    };
+    const handleMessageDeleted = (payload) => {
+      if (!payload?.id) return;
+      patchMessageById(payload.id, (message) => ({
+        ...message,
+        ...payload,
+        content: payload.deletedForEveryone ? 'This message was deleted' : message.content
+      }));
+    };
+    const handleMessageReaction = (payload) => {
+      if (!payload?.messageId) return;
+      patchMessageById(payload.messageId, (message) => {
+        const reactions = Array.isArray(message.reactions) ? [...message.reactions] : [];
+        const adjustReaction = (emoji, delta) => {
+          const index = reactions.findIndex((reaction) => reaction.emoji === emoji);
+          if (index < 0) {
+            if (delta > 0) reactions.push({ emoji, count: delta });
+            return;
+          }
+          const nextCount = Number(reactions[index].count || 1) + delta;
+          if (nextCount <= 0) {
+            reactions.splice(index, 1);
+            return;
+          }
+          reactions[index] = { ...reactions[index], count: nextCount };
+        };
+        if (payload.removed) {
+          adjustReaction(payload.emoji, -1);
+          return { ...message, reactions };
+        }
+        if (payload.previousEmoji && payload.previousEmoji !== payload.emoji) {
+          adjustReaction(payload.previousEmoji, -1);
+        }
+        adjustReaction(payload.emoji, 1);
+        return { ...message, reactions };
+      });
     };
     const handleAccountStatusChange = (payload) => {
       const blockedUserId = Number(payload?.userId);
@@ -365,6 +470,12 @@ export function ChatProvider({ children }) {
     socket.off(SOCKET_EVENTS.NEW_MESSAGE_NOTIFICATION);
     socket.off(SOCKET_EVENTS.SIDEBAR_UPDATE);
     socket.off(SOCKET_EVENTS.UNREAD_COUNT_UPDATE);
+    socket.off('message:sent');
+    socket.off('message:delivered');
+    socket.off('message:seen');
+    socket.off('message:edited');
+    socket.off('message:deleted');
+    socket.off('message:reaction');
     socket.off('account:status-changed');
     socket.off('user:online');
     socket.off('user:offline');
@@ -381,6 +492,12 @@ export function ChatProvider({ children }) {
     socket.on(SOCKET_EVENTS.NEW_MESSAGE_NOTIFICATION, handleNewMessageNotification);
     socket.on(SOCKET_EVENTS.SIDEBAR_UPDATE, handleSidebarUpdate);
     socket.on(SOCKET_EVENTS.UNREAD_COUNT_UPDATE, handleUnreadCountUpdate);
+    socket.on('message:sent', handleIncomingMessage);
+    socket.on('message:delivered', handleMessageDelivered);
+    socket.on('message:seen', handleMessageSeen);
+    socket.on('message:edited', handleMessageEdited);
+    socket.on('message:deleted', handleMessageDeleted);
+    socket.on('message:reaction', handleMessageReaction);
     socket.on('account:status-changed', handleAccountStatusChange);
     socket.on('user:online', (payload) => handleUserPresence({ ...payload, type: 'online' }));
     socket.on('user:offline', (payload) => handleUserPresence({ ...payload, type: 'offline' }));
@@ -399,6 +516,12 @@ export function ChatProvider({ children }) {
       socket.off(SOCKET_EVENTS.NEW_MESSAGE_NOTIFICATION, handleNewMessageNotification);
       socket.off(SOCKET_EVENTS.SIDEBAR_UPDATE, handleSidebarUpdate);
       socket.off(SOCKET_EVENTS.UNREAD_COUNT_UPDATE, handleUnreadCountUpdate);
+      socket.off('message:sent', handleIncomingMessage);
+      socket.off('message:delivered', handleMessageDelivered);
+      socket.off('message:seen', handleMessageSeen);
+      socket.off('message:edited', handleMessageEdited);
+      socket.off('message:deleted', handleMessageDeleted);
+      socket.off('message:reaction', handleMessageReaction);
       socket.off('account:status-changed', handleAccountStatusChange);
       socket.off('user:online');
       socket.off('user:offline');
@@ -435,6 +558,7 @@ export function ChatProvider({ children }) {
     try {
       const { data } = await api.get(`/messages/${chat.id}`);
       setMessages(dedupeMessagesById(data.messages || []));
+      await markChatSeen(chat.id);
     } finally {
       setLoadingMessages(false);
     }
@@ -532,6 +656,27 @@ export function ChatProvider({ children }) {
     return data.message;
   };
 
+  const editMessage = useCallback(async (messageId, content) => {
+    const { data } = await api.patch(`/messages/${messageId}`, { content });
+    if (data?.message) {
+      handleIncomingMessage(data.message, { forceNotify: true });
+    }
+    return data?.message || null;
+  }, [handleIncomingMessage]);
+
+  const deleteMessage = useCallback(async (messageId) => {
+    const { data } = await api.delete(`/messages/${messageId}`);
+    if (data?.message) {
+      handleIncomingMessage(data.message, { forceNotify: true });
+    }
+    return data?.message || null;
+  }, [handleIncomingMessage]);
+
+  const reactToMessage = useCallback(async (messageId, emoji) => {
+    const { data } = await api.post(`/messages/${messageId}/reactions`, { emoji });
+    return data?.reaction || null;
+  }, []);
+
   const startTyping = () => {
     const socket = getSocket();
     if (!selectedChat) return;
@@ -562,6 +707,8 @@ export function ChatProvider({ children }) {
     () => ({
       chats,
       users,
+      replyingToMessage,
+      setReplyingToMessage,
       messages,
       selectedChat,
       onlineUsers,
@@ -574,12 +721,15 @@ export function ChatProvider({ children }) {
       startDirectChat,
       setMessages,
       sendMessage,
+      editMessage,
+      deleteMessage,
+      reactToMessage,
       startTyping,
       stopTyping,
       setNotifications,
       setChats
     }),
-    [chats, messages, selectedChat, onlineUsers, typingUserIds, notifications, loadingChats, loadingMessages, users, loadingUsers]
+    [chats, messages, selectedChat, onlineUsers, typingUserIds, notifications, loadingChats, loadingMessages, users, loadingUsers, replyingToMessage, editMessage, deleteMessage, reactToMessage]
   );
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

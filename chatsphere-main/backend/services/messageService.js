@@ -21,7 +21,28 @@ const serializeMessage = (message) => {
           ...message.replyTo.toJSON?.(),
           sender: toSafeUser(message.replyTo.sender)
         }
-      : message.replyTo
+      : message.replyTo,
+    status: plain.status || 'sent',
+    deliveredAt: plain.deliveredAt || null,
+    seenAt: plain.seenAt || null,
+    editedAt: plain.editedAt || null,
+    deletedForEveryone: !!plain.deletedForEveryone,
+    reactions: Array.isArray(plain.reactors)
+      ? plain.reactors.reduce((acc, reactor) => {
+          const emoji = reactor?.MessageReaction?.emoji || reactor?.messageReaction?.emoji || reactor?.emoji;
+          if (!emoji) return acc;
+          const existing = acc.find((item) => item.emoji === emoji);
+          if (existing) {
+            existing.count += 1;
+            if (!existing.users.some((user) => Number(user.id) === Number(reactor.id))) {
+              existing.users.push(toSafeUser(reactor));
+            }
+            return acc;
+          }
+          acc.push({ emoji, count: 1, users: [toSafeUser(reactor)] });
+          return acc;
+        }, [])
+      : []
   };
 };
 
@@ -70,7 +91,8 @@ export const persistMessage = async ({ chatId, senderId, content = '', replyToId
     content,
     replyToId: replyToId || null,
     mediaUrl,
-    mediaType
+    mediaType,
+    status: 'sent'
   });
 
   const saved = await Message.findByPk(message.id, {
@@ -102,10 +124,13 @@ export const broadcastMessage = ({ chatId, senderId, receiverIds = [], payload }
 
   const normalizedChatId = Number(chatId);
 
+  io.to(`user:${senderId}`).emit('message:sent', payload);
+
   receiverIds.forEach((receiverId) => {
     const target = io.to(`user:${receiverId}`);
     target.emit('message:receive', payload);
     target.emit('message-received', payload);
+    target.emit('message:delivered', { chatId: normalizedChatId, messageId: payload.id, deliveredAt: payload.deliveredAt || new Date().toISOString(), senderId });
     target.emit('new_message_notification', {
       chatId: normalizedChatId,
       message: payload

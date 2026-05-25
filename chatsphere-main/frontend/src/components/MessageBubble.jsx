@@ -6,8 +6,20 @@ const formatTime = (value) => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 };
 
-const MessageBubbleComponent = ({ message, mine }) => {
+const defaultReactions = ['👍', '❤️', '😂', '😮'];
+
+const MessageBubbleComponent = ({ message, mine, onReply, onReact, onEdit, onDelete }) => {
   const isAudioMessage = message.mediaType === 'audio';
+  const reactions = Array.isArray(message.reactions) ? message.reactions : [];
+  const statusText = message.deletedForEveryone
+    ? 'Deleted'
+    : message.status === 'seen' || message.seenAt
+      ? 'Seen'
+      : message.status === 'delivered' || message.deliveredAt
+        ? 'Delivered'
+        : message.status === 'sent'
+          ? 'Sent'
+          : '';
 
   return (
     <div className={`flex min-w-0 w-full items-end gap-2 transition-all ${mine ? 'justify-end' : 'justify-start'} group`}>
@@ -49,16 +61,50 @@ const MessageBubbleComponent = ({ message, mine }) => {
           ) : null}
           
           {message.content ? (
-            <p className="whitespace-pre-wrap break-words leading-relaxed text-[14px] text-[var(--wa-text)]">{message.content}</p>
+            <p className={`whitespace-pre-wrap break-words leading-relaxed text-[14px] ${message.deletedForEveryone ? 'italic opacity-75' : 'text-[var(--wa-text)]'}`}>{message.content}</p>
           ) : null}
+
+          {reactions.length > 0 ? (
+            <div className="flex flex-wrap gap-1 pt-1">
+              {reactions.map((reaction) => (
+                <button
+                  type="button"
+                  key={reaction.emoji}
+                  onClick={() => onReact?.(message, reaction.emoji)}
+                  className="inline-flex items-center gap-1 rounded-full border border-current border-opacity-10 bg-black/5 px-2 py-1 text-[11px] leading-none transition hover:bg-black/10"
+                >
+                  <span>{reaction.emoji}</span>
+                  <span>{reaction.count || 1}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap items-center gap-1 pt-1 opacity-0 transition-opacity group-hover:opacity-100">
+            {defaultReactions.map((emoji) => (
+              <button key={emoji} type="button" onClick={() => onReact?.(message, emoji)} className="rounded-full border border-current border-opacity-10 bg-black/5 px-2 py-1 text-[11px] leading-none hover:bg-black/10">
+                {emoji}
+              </button>
+            ))}
+            <button type="button" onClick={() => onReply?.(message)} className="rounded-full border border-current border-opacity-10 bg-black/5 px-2 py-1 text-[11px] leading-none hover:bg-black/10">
+              Reply
+            </button>
+            {mine ? (
+              <>
+                <button type="button" onClick={() => onEdit?.(message)} className="rounded-full border border-current border-opacity-10 bg-black/5 px-2 py-1 text-[11px] leading-none hover:bg-black/10">
+                  Edit
+                </button>
+                <button type="button" onClick={() => onDelete?.(message)} className="rounded-full border border-current border-opacity-10 bg-black/5 px-2 py-1 text-[11px] leading-none hover:bg-black/10">
+                  Delete
+                </button>
+              </>
+            ) : null}
+          </div>
           
           <div className="mt-0 flex items-center justify-end gap-[var(--space-xs)] whitespace-nowrap text-[11px] leading-none text-[var(--wa-text-secondary)]">
             <span>{formatTime(message.createdAt || Date.now())}</span>
-            {mine ? (
-              <span className="font-[var(--fw-semibold)] text-[var(--wa-primary)]">{
-                message.seenAt ? '✓✓' : '✓'
-              }</span>
-            ) : null}
+            {mine ? <span className="font-[var(--fw-semibold)] text-[var(--wa-primary)]">{message.seenAt ? '✓✓' : message.deliveredAt ? '✓✓' : '✓'}</span> : null}
+            {statusText ? <span className="uppercase tracking-[0.18em]">{statusText}</span> : null}
           </div>
         </div>
       </div>

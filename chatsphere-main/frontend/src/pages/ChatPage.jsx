@@ -29,8 +29,13 @@ export default function ChatPage() {
     sendMessage,
     startTyping,
     stopTyping,
+    editMessage,
+    deleteMessage,
+    reactToMessage,
     startDirectChat,
-    loadingUsers
+    loadingUsers,
+    replyingToMessage,
+    setReplyingToMessage
   } = useChat();
   const scrollRef = useRef(null);
   const chatIdParam = params.id ? Number(params.id) : null;
@@ -72,6 +77,7 @@ export default function ChatPage() {
   const handleSelectChat = async (chat) => {
     if (!chat) return;
     console.log('[chat][select] click', { chatId: chat.id, currentSelectedChatId: selectedChat?.id || null });
+    setReplyingToMessage(null);
     selectChat(chat);
     navigate(`/chat/${chat.id}`);
   };
@@ -83,11 +89,44 @@ export default function ChatPage() {
     }
   };
 
+  const handleReply = (message) => {
+    setReplyingToMessage(message);
+  };
+
+  const handleClearReply = () => {
+    setReplyingToMessage(null);
+  };
+
+  const handleReact = async (message, emoji) => {
+    await reactToMessage(message.id, emoji);
+  };
+
+  const handleEdit = async (message) => {
+    const nextContent = window.prompt('Edit message', message.content || '');
+    if (nextContent === null) return;
+    await editMessage(message.id, nextContent.trim());
+  };
+
+  const handleDelete = async (message) => {
+    const confirmed = window.confirm('Delete this message for everyone?');
+    if (!confirmed) return;
+    await deleteMessage(message.id);
+  };
+
+  const handleSendMessage = async (payload) => {
+    const response = await sendMessage({ ...payload, replyToId: replyingToMessage?.id || payload.replyToId });
+    if (replyingToMessage) {
+      setReplyingToMessage(null);
+    }
+    return response;
+  };
+
   useEffect(() => {
     if (!chatIdParam) return;
 
     const matchingChat = chats.find((chat) => Number(chat.id) === chatIdParam);
     if (matchingChat && Number(selectedChat?.id) !== chatIdParam) {
+      setReplyingToMessage(null);
       selectChat(matchingChat);
     }
   }, [chatIdParam, chats, selectedChat?.id]);
@@ -119,7 +158,7 @@ export default function ChatPage() {
           <div ref={scrollRef} className="glass-panel flex min-h-0 flex-1 flex-col overflow-y-auto p-4 wa-scroll">
             {activeChat ? (
               <div className="flex flex-1 flex-col gap-2">
-                {loadingMessages ? <LoadingScreen label="Loading messages" /> : <MessageList messages={messages} currentUserId={user?.id} />}
+                {loadingMessages ? <LoadingScreen label="Loading messages" /> : <MessageList messages={messages} currentUserId={user?.id} onReply={handleReply} onReact={handleReact} onEdit={handleEdit} onDelete={handleDelete} />}
               </div>
             ) : (
               <EmptyState
@@ -132,9 +171,11 @@ export default function ChatPage() {
           <div className="chat-composer">
             <MessageComposer
               disabled={!activeChat}
-              onSend={sendMessage}
+              onSend={handleSendMessage}
               onTyping={startTyping}
               onStopTyping={stopTyping}
+              replyToMessage={replyingToMessage}
+              onClearReply={handleClearReply}
             />
           </div>
         </div>
@@ -161,16 +202,18 @@ export default function ChatPage() {
             <div className="relative mx-0 mt-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[24px]">
               <div ref={scrollRef} className="glass-panel flex min-h-0 flex-1 flex-col overflow-y-auto p-3 pb-4 wa-scroll">
                 <div className="flex flex-1 flex-col gap-1.5">
-                  {loadingMessages ? <LoadingScreen label="Loading messages" /> : <MessageList messages={messages} currentUserId={user?.id} />}
+                  {loadingMessages ? <LoadingScreen label="Loading messages" /> : <MessageList messages={messages} currentUserId={user?.id} onReply={handleReply} onReact={handleReact} onEdit={handleEdit} onDelete={handleDelete} />}
                 </div>
               </div>
 
               <div className="chat-composer">
                 <MessageComposer
                   disabled={!activeChat}
-                  onSend={sendMessage}
+                  onSend={handleSendMessage}
                   onTyping={startTyping}
                   onStopTyping={stopTyping}
+                  replyToMessage={replyingToMessage}
+                  onClearReply={handleClearReply}
                 />
               </div>
             </div>
