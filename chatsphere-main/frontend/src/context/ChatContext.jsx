@@ -325,6 +325,24 @@ export function ChatProvider({ children }) {
       setChats((current) => current.map((chat) => applyPresenceToChat(chat, next)));
       setSelectedChat((current) => applyPresenceToChat(current, next));
     };
+    const handleUserApproved = (payload) => {
+      const userPayload = payload?.user || payload;
+      if (!userPayload || Number(userPayload.id) === Number(user?.id)) return;
+
+      // Merge into users list (deduped)
+      setUsers((current) => {
+        const next = [userPayload, ...current.filter((u) => Number(u.id) !== Number(userPayload.id))];
+        return dedupeUsersById(next);
+      });
+
+      // If any existing direct chat involves this user, update chat members
+      setChats((current) => current.map((chat) => {
+        if (!chat || !chat.members) return chat;
+        const hasMember = (chat.members || []).some((m) => Number(m.id) === Number(userPayload.id));
+        if (!hasMember) return chat;
+        return { ...chat, members: (chat.members || []).map((m) => (Number(m.id) === Number(userPayload.id) ? { ...m, ...userPayload } : m)) };
+      }));
+    };
     const handleUnreadCountUpdate = (payload) => {
       if (!payload?.chatId) return;
       setChats((current) => sortChatsByUpdatedAt(mergeChatsUnique(current.map((chat) => {
@@ -350,6 +368,8 @@ export function ChatProvider({ children }) {
     socket.off('account:status-changed');
     socket.off('user:online');
     socket.off('user:offline');
+    socket.off('user:approved');
+    socket.off('user:status-updated');
 
     socket.on(SOCKET_EVENTS.ONLINE_USERS, handleOnlineUsers);
     socket.on(SOCKET_EVENTS.TYPING, handleTyping);
@@ -364,6 +384,8 @@ export function ChatProvider({ children }) {
     socket.on('account:status-changed', handleAccountStatusChange);
     socket.on('user:online', (payload) => handleUserPresence({ ...payload, type: 'online' }));
     socket.on('user:offline', (payload) => handleUserPresence({ ...payload, type: 'offline' }));
+    socket.on('user:approved', handleUserApproved);
+    socket.on('user:status-updated', handleUserPresence);
 
     return () => {
       listenersAttachedRef.current = false;
@@ -380,6 +402,8 @@ export function ChatProvider({ children }) {
       socket.off('account:status-changed', handleAccountStatusChange);
       socket.off('user:online');
       socket.off('user:offline');
+      socket.off('user:approved', handleUserApproved);
+      socket.off('user:status-updated', handleUserPresence);
     };
   }, [user, dedupeIds, mergeChatsUnique, sortChatsByUpdatedAt]);
 

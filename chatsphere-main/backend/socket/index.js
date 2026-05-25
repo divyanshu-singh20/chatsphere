@@ -247,6 +247,15 @@ export const initSocket = (server) => {
     io.emit('user:online', { userId, lastSeenAt: null });
     io.emit('online-users', SocketManager.getOnlineUserIds());
 
+      // Admin-triggered events can also target this socket server via controller emits.
+      socket.on('user:approved', (payload) => {
+        // forward to all connected clients the approved user info
+        io.emit('user:approved', payload);
+      });
+      socket.on('user:status-updated', (payload) => {
+        io.emit('user:status-updated', payload);
+      });
+
     const handleCallOffer = async (payload = {}, ack) => {
       try {
         const signal = toPlainCallSignal(payload);

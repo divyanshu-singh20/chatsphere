@@ -41,8 +41,16 @@ const getStatusMessage = (status) => {
   return 'User updated';
 };
 
+const buildStatusPayload = (user, status, message) => ({
+  userId: user.id,
+  status,
+  message,
+  user: toSafeUser(user)
+});
+
 const notifyStatusChange = async (user, status, messageOverride) => {
   const message = messageOverride || getStatusMessage(status);
+  const statusPayload = buildStatusPayload(user, status, message);
 
   await createNotification({
     userId: user.id,
@@ -58,19 +66,16 @@ const notifyStatusChange = async (user, status, messageOverride) => {
     meta: { status }
   }).catch(() => {});
 
-  emitToUser(user.id, 'account:status-changed', {
-    userId: user.id,
-    status,
-    message
-  });
+  emitToUser(user.id, 'account:status-changed', statusPayload);
 
   const io = getIO();
   if (io) {
-    io.emit('account:status-changed', {
-      userId: user.id,
-      status,
-      message
-    });
+    io.emit('account:status-changed', statusPayload);
+    io.emit('user:status-updated', statusPayload);
+
+    if (status === 'approved') {
+      io.emit('user:approved', statusPayload);
+    }
   }
 
   if (status === 'blocked') {
@@ -184,11 +189,15 @@ const updateUserStatus = async (req, res, status, messageOverride) => {
     return res.status(400).json({ success: false, message: 'Admin accounts cannot be modified here' });
   }
 
-  await user.update({
-    status,
-    isOnline: false,
-    lastSeenAt: new Date()
-  });
+  const updatePayload = { status };
+
+  if (status !== 'approved') {
+    updatePayload.isOnline = false;
+    updatePayload.lastSeenAt = new Date();
+  }
+
+  await user.update(updatePayload);
+  await user.reload();
 
   await notifyStatusChange(user, status, messageOverride);
 
