@@ -40,6 +40,9 @@ export const ensureDirectChat = async (userId, otherUserId) => {
   if (!otherUser || !currentUser) {
     throw new Error('User not found');
   }
+  if (otherUser.status !== 'approved' || currentUser.status !== 'approved') {
+    throw new Error('User is not available for direct chat');
+  }
   const chat = await Chat.create({ name: otherUser.fullName || 'Direct chat', createdById: userId, isGroup: false });
   await chat.addMembers([currentUser, otherUser]);
   return chat;

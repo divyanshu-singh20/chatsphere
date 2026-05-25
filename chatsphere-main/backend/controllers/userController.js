@@ -50,6 +50,9 @@ export const searchUsers = asyncHandler(async (req, res) => {
   const q = req.query.q || '';
   const users = await User.findAll({
     where: {
+      role: 'user',
+      status: 'approved',
+      isDeleted: false,
       [Op.or]: [
         { fullName: { [Op.like]: `%${q}%` } },
         { username: { [Op.like]: `%${q}%` } },
@@ -64,7 +67,11 @@ export const searchUsers = asyncHandler(async (req, res) => {
 
 export const listUsers = asyncHandler(async (req, res) => {
   const users = await User.findAll({
-    where: { isDeleted: false },
+    where: {
+      role: 'user',
+      status: 'approved',
+      isDeleted: false
+    },
     attributes: { exclude: ['password'] },
     order: [['fullName', 'ASC']]
 

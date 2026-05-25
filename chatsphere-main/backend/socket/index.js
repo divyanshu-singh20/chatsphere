@@ -33,6 +33,32 @@ export const getSocketIdForUser = (userId) => {
   return getActiveSocketIds(targetUserId)[0] || null;
 };
 
+export const forceUserOffline = async (userId) => {
+  const targetUserId = normalizeUserId(userId);
+  if (!targetUserId || !io) return false;
+
+  const socketIds = SocketManager.getSocketsForUser(targetUserId);
+  socketIds.forEach((socketId) => {
+    const socket = io?.sockets?.sockets?.get(socketId);
+    if (socket) {
+      socket.disconnect(true);
+    }
+  });
+
+  SocketManager.getSocketsForUser(targetUserId).forEach((socketId) => {
+    SocketManager.unregisterUserSocket(targetUserId, socketId);
+  });
+  onlineUsers.delete(targetUserId);
+
+  const offlineAt = new Date();
+  User.update({ isOnline: false, lastSeenAt: offlineAt }, { where: { id: targetUserId } }).catch(() => {});
+  presenceService.setOffline(targetUserId).catch(() => {});
+
+  io.emit('user:offline', { userId: targetUserId, lastSeenAt: offlineAt.toISOString(), reason: 'blocked' });
+  io.emit('online-users', SocketManager.getOnlineUserIds());
+  return true;
+};
+
 const normalizeUserId = (value) => {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;

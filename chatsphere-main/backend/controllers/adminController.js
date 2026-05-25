@@ -5,6 +5,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { signToken } from '../utils/jwt.js';
 import { createNotification } from '../services/notificationService.js';
 import { emitToUser } from '../socket/manager.js';
+import { forceUserOffline, getIO } from '../socket/index.js';
 import { User } from '../models/index.js';
 import { toSafeUser } from './authController.js';
 
@@ -62,6 +63,19 @@ const notifyStatusChange = async (user, status, messageOverride) => {
     status,
     message
   });
+
+  const io = getIO();
+  if (io) {
+    io.emit('account:status-changed', {
+      userId: user.id,
+      status,
+      message
+    });
+  }
+
+  if (status === 'blocked') {
+    await forceUserOffline(user.id);
+  }
 };
 
 export const adminLogin = asyncHandler(async (req, res) => {

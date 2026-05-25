@@ -181,6 +181,18 @@ export function ChatProvider({ children }) {
     }
   }, [mergeChatsUnique, sortChatsByUpdatedAt]);
 
+  const loadUsers = useCallback(async () => {
+    setLoadingUsers(true);
+    try {
+      const { data } = await api.get('/users');
+      setUsers(dedupeUsersById(data.users || []));
+    } catch (err) {
+      setUsers([]);
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, [dedupeUsersById]);
+
   const handleIncomingMessage = async (message, options = {}) => {
     // If server message already handled by id, skip
     if (!message) return;
@@ -267,6 +279,32 @@ export function ChatProvider({ children }) {
     const handleSidebarUpdate = (payload) => {
       if (payload?.message) bumpChat(payload.message, 0);
     };
+    const handleAccountStatusChange = (payload) => {
+      const blockedUserId = Number(payload?.userId);
+      if (!blockedUserId || blockedUserId === Number(user?.id)) return;
+
+      if (payload?.status !== 'blocked') return;
+
+      setUsers((current) => current.filter((entry) => Number(entry.id) !== blockedUserId));
+      setOnlineUsers((current) => current.filter((entryId) => Number(entryId) !== blockedUserId));
+      setChats((current) => {
+        const next = current
+          .map((chat) => {
+            const nextMembers = (chat.members || []).filter((member) => Number(member.id) !== blockedUserId && (Number(member.id) === Number(user?.id) || member.status === 'approved'));
+            if (!chat.isGroup && nextMembers.length < 2) return null;
+            if (chat.isGroup && nextMembers.length < 2) return null;
+            return { ...chat, members: nextMembers };
+          })
+          .filter(Boolean);
+        return sortChatsByUpdatedAt(mergeChatsUnique(next));
+      });
+
+      const activeChat = selectedChatRef.current;
+      if (activeChat && (activeChat.members || []).some((member) => Number(member.id) === blockedUserId)) {
+        setSelectedChat(null);
+        setMessages([]);
+      }
+    };
     const handleUserPresence = (payload) => {
       if (!payload?.userId) return;
       const next = {
@@ -309,6 +347,7 @@ export function ChatProvider({ children }) {
     socket.off(SOCKET_EVENTS.NEW_MESSAGE_NOTIFICATION);
     socket.off(SOCKET_EVENTS.SIDEBAR_UPDATE);
     socket.off(SOCKET_EVENTS.UNREAD_COUNT_UPDATE);
+    socket.off('account:status-changed');
     socket.off('user:online');
     socket.off('user:offline');
 
@@ -322,6 +361,7 @@ export function ChatProvider({ children }) {
     socket.on(SOCKET_EVENTS.NEW_MESSAGE_NOTIFICATION, handleNewMessageNotification);
     socket.on(SOCKET_EVENTS.SIDEBAR_UPDATE, handleSidebarUpdate);
     socket.on(SOCKET_EVENTS.UNREAD_COUNT_UPDATE, handleUnreadCountUpdate);
+    socket.on('account:status-changed', handleAccountStatusChange);
     socket.on('user:online', (payload) => handleUserPresence({ ...payload, type: 'online' }));
     socket.on('user:offline', (payload) => handleUserPresence({ ...payload, type: 'offline' }));
 
@@ -337,6 +377,7 @@ export function ChatProvider({ children }) {
       socket.off(SOCKET_EVENTS.NEW_MESSAGE_NOTIFICATION, handleNewMessageNotification);
       socket.off(SOCKET_EVENTS.SIDEBAR_UPDATE, handleSidebarUpdate);
       socket.off(SOCKET_EVENTS.UNREAD_COUNT_UPDATE, handleUnreadCountUpdate);
+      socket.off('account:status-changed', handleAccountStatusChange);
       socket.off('user:online');
       socket.off('user:offline');
     };
@@ -345,22 +386,10 @@ export function ChatProvider({ children }) {
   useEffect(() => {
     if (!user) return;
 
-    const loadUsers = async () => {
-      setLoadingUsers(true);
-      try {
-        const { data } = await api.get('/users');
-        setUsers(dedupeUsersById(data.users || []));
-      } catch (err) {
-        setUsers([]);
-      } finally {
-        setLoadingUsers(false);
-      }
-    };
-
     // reuse loadChats defined above
     loadChats();
     loadUsers();
-  }, [user, loadChats, dedupeUsersById]);
+  }, [user, loadChats, loadUsers]);
 
   const selectChat = async (chat) => {
     const socket = getSocket();

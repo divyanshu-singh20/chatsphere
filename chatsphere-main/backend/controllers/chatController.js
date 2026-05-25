@@ -4,16 +4,25 @@ import { Chat, Message, User } from '../models/index.js';
 import { ensureDirectChat } from '../services/chatService.js';
 
 const serializeChat = (chat, currentUserId) => {
-  const members = (chat.members || []).filter((member) => member.id !== currentUserId);
-  const counterpart = members[0] || chat.members?.[0];
+  const members = (chat.members || []).filter((member) => Number(member.id) === Number(currentUserId) || member.status === 'approved');
+  const counterpart = members.find((member) => Number(member.id) !== Number(currentUserId)) || null;
   const lastMessage = chat.messages?.[0] || null;
+
+  if (!chat.isGroup && !counterpart) {
+    return null;
+  }
+
+  if (chat.isGroup && members.length < 2) {
+    return null;
+  }
+
   return {
     id: chat.id,
     name: chat.isGroup ? chat.name : counterpart?.fullName || chat.name,
     avatar: chat.isGroup ? chat.avatar : counterpart?.avatar,
     status: counterpart?.status,
     isGroup: chat.isGroup,
-    members: chat.members || [],
+    members,
     lastMessage,
     lastMessageAt: chat.lastMessageAt,
     updatedLabel: chat.lastMessageAt ? new Date(chat.lastMessageAt).toLocaleDateString() : ''
@@ -23,14 +32,14 @@ const serializeChat = (chat, currentUserId) => {
 export const getChats = asyncHandler(async (req, res) => {
   const chats = await Chat.findAll({
     include: [
-      { model: User, as: 'members', through: { attributes: [] } },
+      { model: User, as: 'members', through: { attributes: [] }, where: { status: 'approved', isDeleted: false }, required: false },
       { model: Message, as: 'messages', limit: 1, order: [['createdAt', 'DESC']], separate: true, include: [{ model: User, as: 'sender' }] }
     ],
     order: [['updatedAt', 'DESC']]
   });
 
   const visible = chats.filter((chat) => (chat.members || []).some((member) => member.id === req.user.id));
-  res.json({ chats: visible.map((chat) => serializeChat(chat, req.user.id)) });
+  res.json({ chats: visible.map((chat) => serializeChat(chat, req.user.id)).filter(Boolean) });
 });
 
 export const createDirectChat = asyncHandler(async (req, res) => {
@@ -44,7 +53,7 @@ export const createDirectChat = asyncHandler(async (req, res) => {
     const chat = await ensureDirectChat(req.user.id, Number(userId));
     const full = await Chat.findByPk(chat.id, {
       include: [
-        { model: User, as: 'members', through: { attributes: [] } },
+        { model: User, as: 'members', through: { attributes: [] }, where: { status: 'approved', isDeleted: false }, required: false },
         { model: Message, as: 'messages', limit: 1, order: [['createdAt', 'DESC']], separate: true, include: [{ model: User, as: 'sender' }] }
       ]
     });
