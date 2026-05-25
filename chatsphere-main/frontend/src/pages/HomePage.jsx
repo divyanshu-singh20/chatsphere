@@ -3,7 +3,7 @@ import useDebounce from '../hooks/useDebounce';
 import HomeSearchBar from '../components/HomeSearchBar';
 import MobileChatList from '../components/MobileChatList';
 
-export default function HomePage({ chats = [], onlineUsers = [], currentUserId, onSelectChat, loading = false, storageKey = 'home-scroll' }) {
+export default function HomePage({ chats = [], onlineUsers = [], currentUserId, onSelectChat, loading = false, storageKey = 'home-scroll', user, logout }) {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounce(query, 180);
   const scrollRef = useRef(null);
@@ -39,7 +39,7 @@ export default function HomePage({ chats = [], onlineUsers = [], currentUserId, 
 
   return (
     <div className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-[var(--wa-bg)] text-[var(--wa-text)] lg:hidden">
-      <HomeSearchBar value={query} onChange={setQuery} />
+      <HomeSearchBar value={query} onChange={setQuery} user={user} logout={logout} />
 
       <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[92px] pt-[56px] wa-scroll">
         <MobileChatList

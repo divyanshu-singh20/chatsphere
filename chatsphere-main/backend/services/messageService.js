@@ -22,7 +22,7 @@ const serializeMessage = (message) => {
           sender: toSafeUser(message.replyTo.sender)
         }
       : message.replyTo,
-    status: plain.status || 'sent',
+    status: plain.seenAt ? 'seen' : plain.deliveredAt ? 'delivered' : 'sent',
     deliveredAt: plain.deliveredAt || null,
     seenAt: plain.seenAt || null,
     editedAt: plain.editedAt || null,
@@ -91,8 +91,7 @@ export const persistMessage = async ({ chatId, senderId, content = '', replyToId
     content,
     replyToId: replyToId || null,
     mediaUrl,
-    mediaType,
-    status: 'sent'
+    mediaType
   });
 
   const saved = await Message.findByPk(message.id, {

@@ -7,6 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 import useCall from '../hooks/useCall';
 import CallOverlay from '../components/CallOverlay';
 import MobileBottomNav from '../components/MobileBottomNav';
+import MobileAccountMenu from '../components/MobileAccountMenu';
 
 const avatarBaseUrl = import.meta.env.VITE_AVATAR_BASE_URL;
 
@@ -47,7 +48,16 @@ export default function MainLayout() {
 
   return (
     <div className="min-h-[100dvh] h-[100dvh] w-screen bg-[var(--wa-bg)] text-[var(--wa-text)]">
-      <div className="flex min-h-[100dvh] h-[100dvh] w-screen overflow-hidden">
+      <div className="flex min-h-[100dvh] h-[100dvh] w-screen flex-col overflow-hidden lg:flex-row">
+        {!location.pathname.startsWith('/chat/') ? (
+          <header className="flex items-center justify-between border-b border-[var(--wa-border)] bg-[rgba(10,10,10,0.96)] px-4 py-3 backdrop-blur-md lg:hidden">
+            <div className="min-w-0">
+              <p className="text-xs uppercase tracking-[0.28em] text-[var(--wa-text-secondary)]">ChatSphere</p>
+              <p className="truncate text-sm font-semibold text-white">{user?.fullName || 'Your account'}</p>
+            </div>
+            <MobileAccountMenu user={user} logout={logout} />
+          </header>
+        ) : null}
         <aside className="hidden h-[100dvh] w-[320px] flex-col border-r border-[var(--wa-border)] bg-[var(--wa-sidebar-bg)] p-0 lg:flex">
           <div className="flex items-center justify-between px-4 pt-4">
             <Link to="/app/chat" className="text-xl font-semibold tracking-tight text-white">
@@ -88,7 +98,7 @@ export default function MainLayout() {
               </NavLink>
             ))}
           </nav>
-          <button onClick={logout} className="mt-auto flex items-center gap-3 px-4 py-3 text-sm text-[var(--wa-text-secondary)] transition hover:bg-[var(--wa-card-hover)] hover:text-white rounded-lg"> <FiLogOut className="text-lg" /> Logout</button>
+          <button onClick={logout} className="mt-auto flex items-center gap-3 rounded-lg px-4 py-3 text-sm text-[var(--wa-text-secondary)] transition hover:bg-[var(--wa-card-hover)] hover:text-white"> <FiLogOut className="text-lg" /> Logout</button>
         </aside>
         <main className="relative h-[100dvh] flex-1 overflow-hidden bg-[var(--wa-chat-bg)] w-full">
           <AnimatePresence mode="wait" initial={false} custom={direction}>

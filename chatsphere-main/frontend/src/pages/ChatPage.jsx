@@ -12,7 +12,7 @@ import TypingIndicator from '../components/TypingIndicator';
 import HomePage from './HomePage';
 
 export default function ChatPage() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
@@ -187,6 +187,8 @@ export default function ChatPage() {
             chats={chats}
             onlineUsers={onlineUsers}
             currentUserId={user?.id}
+            user={user}
+            logout={logout}
             onSelectChat={async (chat) => {
               selectChat(chat);
               navigate(`/chat/${chat.id}`);

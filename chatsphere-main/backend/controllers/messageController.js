@@ -149,7 +149,7 @@ export const markSeen = asyncHandler(async (req, res) => {
   const { chatId } = req.body;
   const seenAt = new Date();
   await Message.update(
-    { seenAt, status: 'seen' },
+    { seenAt },
     { where: { chatId, senderId: { [Op.ne]: req.user.id } } }
   );
 

@@ -2,6 +2,8 @@ import { FiMoreVertical, FiPhone, FiSearch, FiVideo } from 'react-icons/fi';
 import Avatar from './Avatar';
 import useCall from '../hooks/useCall';
 import { getPresenceLabel } from '../utils/lastSeen';
+import { useAuth } from '../context/AuthContext';
+import MobileAccountMenu from './MobileAccountMenu';
 
 /* Design System: ChatHeader
  * - Responsive: 56px mobile, 60px desktop
@@ -13,6 +15,7 @@ import { getPresenceLabel } from '../utils/lastSeen';
 
 export default function ChatHeader({ chat, onlineUsers = [], currentUserId, onBack }) {
   const { call, startCall } = useCall();
+  const { user, logout } = useAuth();
 
   if (!chat) {
     return (
@@ -67,7 +70,10 @@ export default function ChatHeader({ chat, onlineUsers = [], currentUserId, onBa
         >
           <FiVideo />
         </button>
-        <button className="inline-flex h-11 w-11 items-center justify-center rounded-[9999px] text-[18px] text-[var(--wa-primary)] transition-all active:scale-95 hover:bg-[var(--wa-card-hover)] hover:shadow-[0_0_0_1px_rgba(10,132,255,0.18),0_0_16px_rgba(10,132,255,0.14)]" title="More options" aria-label="More options">
+        <div className="lg:hidden">
+          <MobileAccountMenu user={user} logout={logout} />
+        </div>
+        <button className="hidden h-11 w-11 items-center justify-center rounded-[9999px] text-[18px] text-[var(--wa-primary)] transition-all active:scale-95 hover:bg-[var(--wa-card-hover)] hover:shadow-[0_0_0_1px_rgba(10,132,255,0.18),0_0_16px_rgba(10,132,255,0.14)] lg:inline-flex" title="More options" aria-label="More options">
           <FiMoreVertical />
         </button>
       </div>

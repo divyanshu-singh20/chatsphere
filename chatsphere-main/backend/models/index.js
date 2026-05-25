@@ -279,15 +279,6 @@ const Message = sequelize.define('Message', {
     defaultValue: 'text'
   },
 
-  status: {
-    type: DataTypes.ENUM('pending', 'sent', 'delivered', 'seen'),
-    defaultValue: 'sent'
-  },
-
-  deliveredAt: {
-    type: DataTypes.DATE
-  },
-
   replyToId: {
     type: DataTypes.BIGINT.UNSIGNED
   },

@@ -1,11 +1,11 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiMessageCircle, FiPhone, FiClock, FiSettings } from 'react-icons/fi';
+import { FiMessageCircle, FiPhone, FiUser, FiSettings } from 'react-icons/fi';
 
 const items = [
   { to: '/chats', label: 'Chats', icon: FiMessageCircle },
   { to: '/calls', label: 'Calls', icon: FiPhone },
-  { to: '/status', label: 'Status', icon: FiClock },
+  { to: '/profile', label: 'Profile', icon: FiUser },
   { to: '/settings', label: 'Settings', icon: FiSettings }
 ];
 

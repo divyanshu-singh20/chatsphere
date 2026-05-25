@@ -92,7 +92,6 @@ const start = async () => {
     await sequelize.sync({ alter: false });
     console.log('✅ Models synced');
 
-    await ensureAuthSchema();
     await ensureDefaultAdmin();
     console.log('✅ Admin auth schema ready');
 
