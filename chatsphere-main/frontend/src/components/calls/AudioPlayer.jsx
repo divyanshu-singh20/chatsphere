@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef } from 'react';
 
-function AudioPlayer({ stream, className = '' }) {
+function AudioPlayer({ stream, className = '', volume = 1 }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -21,7 +21,7 @@ function AudioPlayer({ stream, className = '' }) {
 
     // Prime playback muted to satisfy autoplay restrictions, then unmute once playing.
     audio.muted = true;
-    audio.volume = 1;
+    audio.volume = Math.max(0, Math.min(1, Number(volume) || 0));
 
     const playPromise = audio.play();
     if (playPromise?.catch) {
@@ -48,7 +48,7 @@ function AudioPlayer({ stream, className = '' }) {
         audio.srcObject = null;
       }
     };
-  }, [stream]);
+  }, [stream, volume]);
 
   return <audio ref={ref} autoPlay playsInline className={className} />;
 }

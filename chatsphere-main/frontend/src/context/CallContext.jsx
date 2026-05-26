@@ -113,6 +113,7 @@ export function CallProvider({ children }) {
   const recoverPeerConnectionRef = useRef(null);
   const acceptingCallRef = useRef(false);
   const endingCallRef = useRef(false);
+  const terminalResetTimeoutRef = useRef(null);
   const usersRef = useRef(users || []);
   const chatsRef = useRef(chats || []);
 
@@ -226,6 +227,17 @@ export function CallProvider({ children }) {
       });
       window.clearTimeout(disconnectRecoveryTimeoutRef.current);
       disconnectRecoveryTimeoutRef.current = null;
+    }
+  }, []);
+
+  const clearTerminalResetTimeout = useCallback(() => {
+    if (terminalResetTimeoutRef.current) {
+      console.debug('[timer][cleanup]', {
+        timer: 'terminal-reset',
+        callId: currentCallRef.current.callId || null
+      });
+      window.clearTimeout(terminalResetTimeoutRef.current);
+      terminalResetTimeoutRef.current = null;
     }
   }, []);
 
@@ -436,6 +448,8 @@ export function CallProvider({ children }) {
       // ignore
     }
 
+    clearTerminalResetTimeout();
+
     clearUnansweredCallTimeout();
     clearDisconnectRecoveryTimeout();
 
@@ -513,7 +527,19 @@ export function CallProvider({ children }) {
 
     // finalize
     resettingRef.current = false;
-  }, [clearDisconnectRecoveryTimeout, clearUnansweredCallTimeout, setCallState]);
+  }, [clearDisconnectRecoveryTimeout, clearTerminalResetTimeout, clearUnansweredCallTimeout, setCallState]);
+
+  const settleTerminalCall = useCallback((reason = 'ended') => {
+    const normalizedReason = typeof reason === 'string' && reason.trim() ? reason : 'ended';
+
+    clearTerminalResetTimeout();
+    resetCallSession(normalizedReason, { keepEndedState: true });
+
+    terminalResetTimeoutRef.current = window.setTimeout(() => {
+      terminalResetTimeoutRef.current = null;
+      resetCallSession(normalizedReason, { keepEndedState: false });
+    }, 1200);
+  }, [clearTerminalResetTimeout, resetCallSession]);
 
   const markConnected = useCallback(() => {
     setCallState((current) => {
@@ -756,8 +782,8 @@ export function CallProvider({ children }) {
     }
 
     callSoundManager.stopAll();
-    resetCallSession(normalizedReason, { keepEndedState: false });
-  }, [emitSocketEvent, resetCallSession]);
+    settleTerminalCall(normalizedReason);
+  }, [emitSocketEvent, settleTerminalCall]);
 
   const startCall = useCallback(async ({ chat = null, type = 'voice' } = {}) => {
     const activeChat = chat || selectedChat;
@@ -770,6 +796,8 @@ export function CallProvider({ children }) {
       toast.error('Call already active');
       return;
     }
+
+    clearTerminalResetTimeout();
 
     const peerUser = normalizeUser(findPeerUser(activeChat, user.id));
     if (!peerUser) {
@@ -864,7 +892,7 @@ export function CallProvider({ children }) {
       toast.error(error?.message || 'Unable to start call');
       resetCallSession('failed', { keepEndedState: false });
     }
-  }, [attachPeerState, clearUnansweredCallTimeout, ensurePeerConnection, emitSocketEvent, endCall, findPeerUser, getLocalStream, resetCallSession, selectedChat, setCallState, setSoundBlocked, user]);
+  }, [attachPeerState, clearTerminalResetTimeout, clearUnansweredCallTimeout, ensurePeerConnection, emitSocketEvent, endCall, findPeerUser, getLocalStream, resetCallSession, selectedChat, setCallState, setSoundBlocked, user]);
 
   const acceptCall = useCallback(async () => {
     if (!callStartedRef.current) return;
@@ -881,6 +909,7 @@ export function CallProvider({ children }) {
     pendingCallIdRef.current = sessionId;
     acceptingCallRef.current = true;
 
+    clearTerminalResetTimeout();
     callSoundManager.stopAll();
 
     console.debug('[webrtc][offer-received]', {
@@ -965,7 +994,7 @@ export function CallProvider({ children }) {
     } finally {
       acceptingCallRef.current = false;
     }
-  }, [attachPeerState, ensurePeerConnection, emitSocketEvent, flushPendingIceCandidates, getLocalStream, resetCallSession, setCallState, setSoundBlocked]);
+  }, [attachPeerState, clearTerminalResetTimeout, ensurePeerConnection, emitSocketEvent, flushPendingIceCandidates, getLocalStream, resetCallSession, setCallState, setSoundBlocked]);
 
   const rejectCall = useCallback((reason = 'rejected') => {
     if (!callStartedRef.current) return;
@@ -1376,8 +1405,8 @@ export function CallProvider({ children }) {
       toast.error('Call rejected');
     }
 
-    resetCallSession(payload.reason || 'rejected', { keepEndedState: false });
-  }, [resetCallSession]);
+    settleTerminalCall(payload.reason || 'rejected');
+  }, [settleTerminalCall]);
 
   const handleIncomingEnd = useCallback((payload = {}) => {
     console.debug('[socket][receive]', {
@@ -1396,8 +1425,8 @@ export function CallProvider({ children }) {
       return;
     }
 
-    resetCallSession(payload.reason || 'ended', { keepEndedState: false });
-  }, [resetCallSession]);
+    settleTerminalCall(payload.reason || 'ended');
+  }, [settleTerminalCall]);
 
   const handleSocketDisconnect = useCallback((reason) => {
     console.debug('[socket][disconnect]', {
@@ -1522,11 +1551,12 @@ export function CallProvider({ children }) {
       console.debug('[socket][listener-remove]', { event: 'disconnect' });
       socket.off('disconnect', handleSocketDisconnect);
       initializedRef.current = false;
+      clearTerminalResetTimeout();
       clearUnansweredCallTimeout();
       clearDisconnectRecoveryTimeout();
       resetCallSession('idle', { keepEndedState: false });
     };
-  }, [clearDisconnectRecoveryTimeout, clearUnansweredCallTimeout, handleIncomingAnswer, handleIncomingEnd, handleIncomingIce, handleIncomingOffer, handleIncomingReject, handleSocketDisconnect, resetCallSession, user]);
+  }, [clearDisconnectRecoveryTimeout, clearTerminalResetTimeout, clearUnansweredCallTimeout, handleIncomingAnswer, handleIncomingEnd, handleIncomingIce, handleIncomingOffer, handleIncomingReject, handleSocketDisconnect, resetCallSession, user]);
 
   useEffect(() => {
     if (!user) return undefined;
@@ -1625,8 +1655,9 @@ export function CallProvider({ children }) {
 
   useEffect(() => () => {
     clearDisconnectRecoveryTimeout();
+    clearTerminalResetTimeout();
     resetCallSession('idle', { keepEndedState: false });
-  }, [clearDisconnectRecoveryTimeout, resetCallSession]);
+  }, [clearDisconnectRecoveryTimeout, clearTerminalResetTimeout, resetCallSession]);
 
   const unlockCallSound = useCallback(async () => {
     const ok = await callSoundManager.unlock();

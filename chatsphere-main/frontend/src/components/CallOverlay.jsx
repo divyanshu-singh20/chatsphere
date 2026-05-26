@@ -1,6 +1,8 @@
+import { AnimatePresence } from 'framer-motion';
 import IncomingCallScreen from './calls/IncomingCallScreen';
 import OutgoingCallScreen from './calls/OutgoingCallScreen';
 import ActiveCallScreen from './calls/ActiveCallScreen';
+import CallTerminalScreen from './calls/CallTerminalScreen';
 
 export default function CallOverlay({
   call,
@@ -17,27 +19,32 @@ export default function CallOverlay({
 }) {
   if (!call || call.status === 'idle') return null;
 
-  if (call.status === 'ringing' && call.isIncoming) {
-    return <IncomingCallScreen call={call} soundBlocked={soundBlocked} onEnableSound={onEnableSound} onAccept={onAccept} onReject={onReject} />;
-  }
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      {call.status === 'ringing' && call.isIncoming ? (
+        <IncomingCallScreen key={`incoming-${call.callId || 'call'}`} call={call} soundBlocked={soundBlocked} onEnableSound={onEnableSound} onAccept={onAccept} onReject={onReject} />
+      ) : null}
 
-  if (call.status === 'calling') {
-    return <OutgoingCallScreen call={call} soundBlocked={soundBlocked} onEnableSound={onEnableSound} onCancel={onEnd} />;
-  }
+      {call.status === 'calling' ? (
+        <OutgoingCallScreen key={`outgoing-${call.callId || 'call'}`} call={call} soundBlocked={soundBlocked} onEnableSound={onEnableSound} onCancel={onEnd} />
+      ) : null}
 
-  if (call.status === 'connecting' || call.status === 'connected' || call.status === 'in-call') {
-    return (
-      <ActiveCallScreen
-        call={call}
-        localStream={localStream}
-        remoteStream={remoteStream}
-        durationSeconds={durationSeconds}
-        onToggleMute={onToggleMute}
-        onToggleCamera={onToggleCamera}
-        onEnd={onEnd}
-      />
-    );
-  }
+      {(call.status === 'connecting' || call.status === 'connected' || call.status === 'in-call') ? (
+        <ActiveCallScreen
+          key={`active-${call.callId || 'call'}`}
+          call={call}
+          localStream={localStream}
+          remoteStream={remoteStream}
+          durationSeconds={durationSeconds}
+          onToggleMute={onToggleMute}
+          onToggleCamera={onToggleCamera}
+          onEnd={onEnd}
+        />
+      ) : null}
 
-  return null;
+      {call.status === 'ended' && call.endedReason ? (
+        <CallTerminalScreen key={`terminal-${call.callId || 'call'}`} call={call} />
+      ) : null}
+    </AnimatePresence>
+  );
 }

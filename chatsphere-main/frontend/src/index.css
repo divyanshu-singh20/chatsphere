@@ -440,6 +440,141 @@ body {
 }
 
 /* ============================================
+   CALL UI SYSTEM
+   ============================================ */
+
+.call-shell {
+  isolation: isolate;
+}
+
+.call-grid-overlay {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: radial-gradient(circle at center, black 42%, transparent 100%);
+}
+
+.call-media-shell {
+  min-height: calc(100dvh - 132px);
+}
+
+.call-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 8px 12px;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  backdrop-filter: blur(20px);
+}
+
+.call-status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #30d158 0%, #0a84ff 100%);
+  box-shadow: 0 0 0 6px rgba(48, 209, 88, 0.12);
+}
+
+.call-avatar-ring {
+  position: relative;
+  width: fit-content;
+  border-radius: 9999px;
+  padding: 6px;
+  background: linear-gradient(180deg, rgba(48, 209, 88, 0.35), rgba(10, 132, 255, 0.22));
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.call-control-dock {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(7, 7, 7, 0.7);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.42);
+}
+
+.call-control-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.call-control-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.call-control-button:hover,
+.call-control-button:focus-visible {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.call-control-button.is-active {
+  background: rgba(10, 132, 255, 0.16);
+  border-color: rgba(10, 132, 255, 0.3);
+  box-shadow: 0 0 0 1px rgba(10, 132, 255, 0.18), 0 12px 24px rgba(10, 132, 255, 0.1);
+}
+
+.call-control-button--end {
+  background: linear-gradient(180deg, rgba(255, 69, 58, 1), rgba(209, 48, 36, 1));
+  border-color: rgba(255, 69, 58, 0.4);
+  box-shadow: 0 0 0 1px rgba(255, 69, 58, 0.14), 0 18px 30px rgba(255, 69, 58, 0.35);
+}
+
+.call-control-button--end:hover,
+.call-control-button--end:focus-visible {
+  background: linear-gradient(180deg, rgba(255, 77, 69, 1), rgba(224, 55, 44, 1));
+}
+
+.call-pip {
+  backdrop-filter: blur(14px);
+}
+
+.call-pip__label {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: white;
+}
+
+@keyframes callWave {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.72;
+  }
+  50% {
+    transform: translateY(-8px);
+    opacity: 1;
+  }
+}
+
+.animate-call-wave {
+  animation: callWave 1.6s ease-in-out infinite;
+}
+
+/* ============================================
    MESSAGE GROUPING & STYLING
    ============================================ */
 
