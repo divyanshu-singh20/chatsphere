@@ -3,7 +3,12 @@ class CallSoundManager {
     this.isUnlocked = false;
     this.audio = null;
     this.lastPlayAttempt = 0;
-    this.assetUrl = '/sounds/ringtone.mpeg';
+    this.activeMode = null;
+    this.assetUrl = '/sounds/call-tone.mpeg';
+
+    if (typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname || '')) {
+      window.__callSoundManager = this;
+    }
   }
 
   async unlock() {
@@ -11,7 +16,6 @@ class CallSoundManager {
 
     try {
       if (!this.audio) return false;
-      const previousMuted = this.audio.muted;
       this.audio.muted = true;
       this.audio.currentTime = 0;
       const playPromise = this.audio.play();
@@ -20,7 +24,7 @@ class CallSoundManager {
       }
       this.audio.pause();
       this.audio.currentTime = 0;
-      this.audio.muted = previousMuted;
+      this.audio.muted = false;
       this.isUnlocked = true;
       return true;
     } catch (error) {
@@ -45,7 +49,7 @@ class CallSoundManager {
     audio.volume = 1;
 
     audio.addEventListener('ended', () => {
-      if (!audio.loop) return;
+      if (!audio.loop || audio.paused) return;
       audio.currentTime = 0;
       const replay = audio.play();
       if (replay?.catch) replay.catch(() => {});
@@ -61,13 +65,16 @@ class CallSoundManager {
     try {
       this.audio.pause();
       this.audio.currentTime = 0;
+      this.audio.muted = false;
     } catch (error) {
       // ignore stop errors
     }
+
+    this.activeMode = null;
   }
 
   stopDialing() {
-    return;
+    this.stopRingtone();
   }
 
   stopAll() {
@@ -75,36 +82,55 @@ class CallSoundManager {
     this.stopDialing();
   }
 
-  async playRingtone() {
+  async playTone(mode = 'ringtone') {
     const audio = this.ensureAudio();
 
     if (!audio) return false;
 
     const now = Date.now();
-    if (now - this.lastPlayAttempt < 500) {
+    if (now - this.lastPlayAttempt < 350 && this.activeMode === mode && !audio.paused) {
       return this.isUnlocked;
     }
     this.lastPlayAttempt = now;
 
     try {
-      this.stopRingtone();
+      if (this.activeMode !== mode || audio.paused) {
+        this.stopRingtone();
+      }
+
       audio.loop = true;
+      audio.preload = 'auto';
       audio.currentTime = 0;
+      audio.muted = false;
       const playPromise = audio.play();
       if (playPromise?.catch) {
         await playPromise;
       }
       this.isUnlocked = true;
+      this.activeMode = mode;
       return true;
     } catch (error) {
+      if (error?.name === 'AbortError') {
+        try {
+          audio.pause();
+          audio.currentTime = 0;
+        } catch (cleanupError) {
+          // ignore cleanup errors
+        }
+      }
+
       this.isUnlocked = false;
+      this.activeMode = null;
       return false;
     }
   }
 
+  async playRingtone() {
+    return this.playTone('incoming');
+  }
+
   async playDialingTone() {
-    await this.ensureUnlocked();
-    return false;
+    return this.playTone('dialing');
   }
 }
 

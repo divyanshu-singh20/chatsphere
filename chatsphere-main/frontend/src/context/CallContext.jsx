@@ -832,6 +832,9 @@ export function CallProvider({ children }) {
       const soundReady = await callSoundManager.unlock();
       setSoundBlocked(!soundReady);
 
+      const dialingPlayed = await callSoundManager.playDialingTone();
+      setSoundBlocked((current) => current || !dialingPlayed);
+
       const stream = await getLocalStream(type);
       if (!stream) {
         throw new Error('Unable to access the microphone');
