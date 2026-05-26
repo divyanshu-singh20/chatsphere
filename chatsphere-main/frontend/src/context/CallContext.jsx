@@ -22,12 +22,7 @@ const CALL_EVENTS = {
   ANSWER: 'call:answer',
   ICE: 'call:ice-candidate',
   END: 'call:end',
-  REJECT: 'call:reject',
-  LEGACY_OFFER: 'call:initiate',
-  LEGACY_INCOMING: 'call:incoming',
-  LEGACY_INVITE: 'call-invite',
-  LEGACY_ANSWER: 'call:accepted',
-  LEGACY_REJECT: 'call:rejected'
+  REJECT: 'call:reject'
 };
 
 const initialCallState = {
@@ -1475,14 +1470,9 @@ export function CallProvider({ children }) {
 
     const listeners = [
       [CALL_EVENTS.OFFER, handleIncomingOffer],
-      [CALL_EVENTS.LEGACY_INCOMING, handleIncomingOffer],
-      ['incoming-call', handleIncomingOffer],
-      ['call-invite', handleIncomingOffer],
       [CALL_EVENTS.ANSWER, handleIncomingAnswer],
-      [CALL_EVENTS.LEGACY_ANSWER, handleIncomingAnswer],
       [CALL_EVENTS.ICE, handleIncomingIce],
       [CALL_EVENTS.REJECT, handleIncomingReject],
-      [CALL_EVENTS.LEGACY_REJECT, handleIncomingReject],
       [CALL_EVENTS.END, handleIncomingEnd]
     ];
 

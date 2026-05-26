@@ -27,7 +27,7 @@ export function ChatProvider({ children }) {
   const listenersAttachedRef = useRef(false);
   const [replyingToMessage, setReplyingToMessage] = useState(null);
 
-  const dedupeUsersById = useCallback((list = []) => {
+  const uniqueUsersById = useCallback((list = []) => {
     const seen = new Set();
     return list.filter((entry) => {
       const id = Number(entry?.id);
@@ -35,6 +35,28 @@ export function ChatProvider({ children }) {
       seen.add(id);
       return true;
     });
+  }, []);
+
+  const uniqueChatsByConversation = useCallback((list = []) => {
+    const seen = new Set();
+    return [...list]
+      .sort((a, b) => new Date(b.updatedAt || b.lastMessageAt || 0) - new Date(a.updatedAt || a.lastMessageAt || 0))
+      .filter((chat) => {
+        const chatId = Number(chat?.id);
+        if (!chatId) return false;
+
+        const memberIds = (chat.members || [])
+          .map((member) => Number(member?.id))
+          .filter((id) => Number.isInteger(id) && id > 0);
+
+        const key = chat.isGroup
+          ? `group:${chatId}`
+          : `direct:${Array.from(new Set(memberIds)).sort((a, b) => a - b).join(':') || chatId}`;
+
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
   }, []);
 
   const dedupeIds = useCallback((list = []) => {
@@ -67,6 +89,10 @@ export function ChatProvider({ children }) {
   const sortChatsByUpdatedAt = useCallback((list = []) => (
     [...list].sort((a, b) => new Date(b.updatedAt || b.lastMessageAt || 0) - new Date(a.updatedAt || a.lastMessageAt || 0))
   ), []);
+
+  const normalizeChats = useCallback((list = []) => (
+    sortChatsByUpdatedAt(uniqueChatsByConversation(mergeChatsUnique(list)))
+  ), [mergeChatsUnique, sortChatsByUpdatedAt, uniqueChatsByConversation]);
 
   const upsertChat = useCallback((list = [], nextChat, { prepend = false } = {}) => {
     if (!nextChat?.id) return list;
@@ -186,7 +212,7 @@ export function ChatProvider({ children }) {
         unreadCount: Math.max(0, Number(existing?.unreadCount || 0) + unreadDelta)
       };
       const next = upsertChat(current, nextChat, { prepend: true });
-      return sortChatsByUpdatedAt(mergeChatsUnique(next));
+      return normalizeChats(next);
     });
   };
 
@@ -195,13 +221,13 @@ export function ChatProvider({ children }) {
     try {
       const { data } = await api.get('/chats');
       const normalized = (data.chats || []).map((chat) => ({ ...chat, unreadCount: Number(chat.unreadCount || 0) }));
-      setChats(sortChatsByUpdatedAt(mergeChatsUnique(normalized)));
+      setChats(normalizeChats(normalized));
     } catch (err) {
       console.warn('failed to reload chats', err);
     } finally {
       setLoadingChats(false);
     }
-  }, [mergeChatsUnique, sortChatsByUpdatedAt]);
+  }, [normalizeChats]);
 
   const markChatSeen = useCallback(async (chatId) => {
     if (!chatId) return;
@@ -216,13 +242,13 @@ export function ChatProvider({ children }) {
     setLoadingUsers(true);
     try {
       const { data } = await api.get('/users');
-      setUsers(dedupeUsersById(data.users || []));
+      setUsers(uniqueUsersById(data.users || []));
     } catch (err) {
       setUsers([]);
     } finally {
       setLoadingUsers(false);
     }
-  }, [dedupeUsersById]);
+  }, [uniqueUsersById]);
 
   const handleIncomingMessage = async (message, options = {}) => {
     // If server message already handled by id, skip
@@ -388,7 +414,7 @@ export function ChatProvider({ children }) {
 
       if (payload?.status !== 'blocked') return;
 
-      setUsers((current) => current.filter((entry) => Number(entry.id) !== blockedUserId));
+      setUsers((current) => uniqueUsersById(current.filter((entry) => Number(entry.id) !== blockedUserId)));
       setOnlineUsers((current) => current.filter((entryId) => Number(entryId) !== blockedUserId));
       setChats((current) => {
         const next = current
@@ -399,7 +425,7 @@ export function ChatProvider({ children }) {
             return { ...chat, members: nextMembers };
           })
           .filter(Boolean);
-        return sortChatsByUpdatedAt(mergeChatsUnique(next));
+        return normalizeChats(next);
       });
 
       const activeChat = selectedChatRef.current;
@@ -424,8 +450,8 @@ export function ChatProvider({ children }) {
         return current.filter((value) => value !== next.userId);
       });
 
-      setUsers((current) => current.map((entry) => applyPresenceToMember(entry, next)));
-      setChats((current) => current.map((chat) => applyPresenceToChat(chat, next)));
+      setUsers((current) => uniqueUsersById(current.map((entry) => applyPresenceToMember(entry, next))));
+      setChats((current) => normalizeChats(current.map((chat) => applyPresenceToChat(chat, next))));
       setSelectedChat((current) => applyPresenceToChat(current, next));
     };
     const handleUserApproved = (payload) => {
@@ -433,10 +459,7 @@ export function ChatProvider({ children }) {
       if (!userPayload || Number(userPayload.id) === Number(user?.id)) return;
 
       // Merge into users list (deduped)
-      setUsers((current) => {
-        const next = [userPayload, ...current.filter((u) => Number(u.id) !== Number(userPayload.id))];
-        return dedupeUsersById(next);
-      });
+      setUsers((current) => uniqueUsersById([userPayload, ...current.filter((u) => Number(u.id) !== Number(userPayload.id))]));
 
       // If any existing direct chat involves this user, update chat members
       setChats((current) => current.map((chat) => {
@@ -448,14 +471,14 @@ export function ChatProvider({ children }) {
     };
     const handleUnreadCountUpdate = (payload) => {
       if (!payload?.chatId) return;
-      setChats((current) => sortChatsByUpdatedAt(mergeChatsUnique(current.map((chat) => {
+      setChats((current) => normalizeChats(current.map((chat) => {
         if (Number(chat.id) !== Number(payload.chatId)) return chat;
         // If server sends an absolute unread count, prefer it over delta.
         if (typeof payload.unreadCount === 'number') {
           return { ...chat, unreadCount: Math.max(0, Number(payload.unreadCount)) };
         }
         return chat;
-      }))));
+      })));
     };
 
     socket.off(SOCKET_EVENTS.ONLINE_USERS);
@@ -526,7 +549,7 @@ export function ChatProvider({ children }) {
       socket.off('user:approved', handleUserApproved);
       socket.off('user:status-updated', handleUserPresence);
     };
-  }, [user, dedupeIds, mergeChatsUnique, sortChatsByUpdatedAt]);
+  }, [normalizeChats, uniqueUsersById, dedupeIds]);
 
   useEffect(() => {
     if (!user) return;
@@ -543,7 +566,7 @@ export function ChatProvider({ children }) {
     }
     setSelectedChat(chat);
     if (chat?.id) {
-      setChats((current) => mergeChatsUnique(current.map((entry) => Number(entry.id) === Number(chat.id) ? { ...entry, unreadCount: 0 } : entry)));
+      setChats((current) => normalizeChats(current.map((entry) => Number(entry.id) === Number(chat.id) ? { ...entry, unreadCount: 0 } : entry)));
     }
     if (!chat) return;
 
@@ -565,7 +588,7 @@ export function ChatProvider({ children }) {
       const created = data.chat;
       if (!created) return null;
       // prepend or replace existing chat preview
-      setChats((current) => sortChatsByUpdatedAt(mergeChatsUnique(upsertChat(current, created, { prepend: true }))));
+      setChats((current) => normalizeChats(upsertChat(current, created, { prepend: true })));
       // select the created chat (this will join socket room and load messages)
       await selectChat(created);
       return created;

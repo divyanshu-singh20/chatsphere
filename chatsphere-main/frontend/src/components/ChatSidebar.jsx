@@ -45,8 +45,18 @@ function ChatSidebar({ chats, users = [], selectedChat, onSelect, onlineUsers = 
     const seen = new Set();
     return (filteredChats || []).filter((chat) => {
       const id = Number(chat?.id);
-      if (!id || seen.has(id)) return false;
-      seen.add(id);
+      if (!id) return false;
+
+      const memberIds = (chat.members || [])
+        .map((member) => Number(member?.id))
+        .filter((value) => Number.isInteger(value) && value > 0);
+
+      const key = chat?.isGroup
+        ? `group:${id}`
+        : `direct:${Array.from(new Set(memberIds)).sort((a, b) => a - b).join(':') || id}`;
+
+      if (seen.has(key)) return false;
+      seen.add(key);
       return true;
     });
   }, [filteredChats]);

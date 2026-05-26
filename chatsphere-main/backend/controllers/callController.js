@@ -44,9 +44,6 @@ export const startCall = asyncHandler(async (req, res) => {
 
     if (targetSocketId) {
       io.to(targetSocketId).emit('call:offer', payload);
-      io.to(targetSocketId).emit('call:incoming', payload);
-      io.to(targetSocketId).emit('call-invite', payload);
-      io.to(targetSocketId).emit('incoming-call', payload);
     }
   }
 

@@ -325,8 +325,6 @@ export const initSocket = (server) => {
         };
 
         const delivered = emitToUserSafely(targetUserId, 'call:offer', offerPayload).delivered;
-        emitToUserSafely(targetUserId, 'call:incoming', offerPayload);
-        emitToUserSafely(targetUserId, 'call-invite', offerPayload);
 
         logCallEvent('offer received', {
           callId: call.id,
@@ -353,7 +351,6 @@ export const initSocket = (server) => {
     };
 
     socket.on('call:offer', handleCallOffer);
-    socket.on('call:initiate', handleCallOffer);
 
     socket.on('call:answer', async (payload = {}) => {
       try {
@@ -423,7 +420,6 @@ export const initSocket = (server) => {
         });
 
         emitToUserSafely(targetUserId, 'call:answer', answerPayload);
-        emitToUserSafely(targetUserId, 'call:accepted', answerPayload);
       } catch (error) {
         console.error('[call] answer relay failed', {
           fromUserId: userId,
@@ -514,11 +510,6 @@ export const initSocket = (server) => {
         reason: signal.reason || 'rejected'
       });
 
-      emitToUserSafely(targetUserId, 'call:rejected', {
-        callId,
-        chatId: signal.chatId,
-        reason: signal.reason || 'rejected'
-      });
       emitToUserSafely(targetUserId, 'call:reject', {
         callId,
         chatId: signal.chatId,
@@ -527,7 +518,6 @@ export const initSocket = (server) => {
     };
 
     socket.on('call:reject', handleCallReject);
-    socket.on('call:rejected', handleCallReject);
 
     socket.on('call:end', async (payload = {}) => {
       const signal = toPlainCallSignal(payload);
@@ -558,11 +548,6 @@ export const initSocket = (server) => {
       });
 
       emitToUserSafely(targetUserId, 'call:end', {
-        callId,
-        chatId: signal.chatId,
-        reason: signal.reason || 'ended'
-      });
-      emitToUserSafely(targetUserId, 'call:ended', {
         callId,
         chatId: signal.chatId,
         reason: signal.reason || 'ended'
