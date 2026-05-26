@@ -1,4 +1,5 @@
 import { FiSearch } from 'react-icons/fi';
+import MobileAccountMenu from './MobileAccountMenu';
 
 export default function HomeSearchBar({ value, onChange, placeholder = 'Search chats...', user, logout }) {
   return (
@@ -14,6 +15,7 @@ export default function HomeSearchBar({ value, onChange, placeholder = 'Search c
             className="h-full w-full bg-transparent text-[14px] text-[var(--wa-text)] outline-none placeholder:text-[var(--wa-text-secondary)]"
           />
         </label>
+        {user ? <MobileAccountMenu user={user} logout={logout} className="shrink-0" /> : null}
       </div>
     </div>
   );
