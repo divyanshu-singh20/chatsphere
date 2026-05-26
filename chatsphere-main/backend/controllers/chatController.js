@@ -32,21 +32,38 @@ const serializeChat = (chat, currentUserId) => {
 export const getChats = asyncHandler(async (req, res) => {
   const chats = await Chat.findAll({
     include: [
-      { model: User, as: 'members', through: { attributes: [] }, where: { status: 'approved', isDeleted: false }, required: false },
-      { model: Message, as: 'messages', limit: 1, order: [['createdAt', 'DESC']], separate: true, include: [{ model: User, as: 'sender' }] }
+      { model: User, as: 'members', through: { attributes: [] }, where: { status: 'approved', isDeleted: false }, required: false }
     ],
     order: [['updatedAt', 'DESC']]
   });
 
   const visible = chats.filter((chat) => (chat.members || []).some((member) => member.id === req.user.id));
-  res.json({ chats: visible.map((chat) => serializeChat(chat, req.user.id)).filter(Boolean) });
+  const chatIds = visible.map((chat) => chat.id);
+
+  const latestMessages = chatIds.length
+    ? await Message.findAll({
+      where: { chatId: chatIds, deletedForEveryone: false },
+      include: [{ model: User, as: 'sender' }],
+      order: [['chatId', 'ASC'], ['createdAt', 'DESC']]
+    })
+    : [];
+
+  const latestByChatId = new Map();
+  latestMessages.forEach((message) => {
+    const chatId = Number(message.chatId);
+    if (!latestByChatId.has(chatId)) {
+      latestByChatId.set(chatId, message);
+    }
+  });
+
+  res.json({
+    chats: visible.map((chat) => serializeChat({ ...chat.toJSON(), messages: [latestByChatId.get(Number(chat.id))].filter(Boolean) }, req.user.id)).filter(Boolean)
+  });
 });
 
 export const createDirectChat = asyncHandler(async (req, res) => {
   try {
     const { userId } = req.body;
-    console.log('createDirectChat body:', req.body);
-    console.log('createDirectChat req.user:', req.user && { id: req.user.id, username: req.user.username });
     if (!userId) {
       return res.status(400).json({ success: false, message: 'userId is required' });
     }

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import MessageBubble from './MessageBubble';
 import EmptyState from './EmptyState';
 
@@ -34,7 +34,7 @@ const groupMessagesByDate = (messages) => {
   return groups;
 };
 
-export default function MessageList({ messages, currentUserId, onReply, onReact, onEdit, onDelete }) {
+function MessageList({ messages, currentUserId, onReply, onReact, onEdit, onDelete }) {
   const uniqueMessages = useMemo(() => {
     const seen = new Set();
     return (messages || []).filter((message) => {
@@ -77,3 +77,5 @@ export default function MessageList({ messages, currentUserId, onReply, onReact,
     </div>
   );
 }
+
+export default memo(MessageList);

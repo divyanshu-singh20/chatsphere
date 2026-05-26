@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import { Chat, Group, Message, User } from '../models/index.js';
 
 export const buildChatPreview = async (chat, currentUserId) => {
@@ -18,8 +19,16 @@ export const buildChatPreview = async (chat, currentUserId) => {
 
 export const getDirectChatWhere = async (userId, otherUserId) => {
   const chats = await Chat.findAll({
+    attributes: ['id', 'name', 'isGroup', 'createdById', 'avatar', 'lastMessageAt'],
     where: { isGroup: false },
-    include: [{ model: User, as: 'members', through: { attributes: [] } }]
+    include: [{
+      model: User,
+      as: 'members',
+      through: { attributes: [] },
+      where: { id: { [Op.in]: [Number(userId), Number(otherUserId)] } },
+      required: true,
+      attributes: ['id', 'fullName', 'username', 'avatar', 'status']
+    }]
   });
 
   return chats.find((chat) => {

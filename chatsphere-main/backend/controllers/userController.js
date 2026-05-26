@@ -18,6 +18,16 @@ const safeUser = (user) => ({
   lastSeenAt: user.lastSeenAt
 });
 
+const chatListUser = (user) => ({
+  id: user.id,
+  fullName: user.fullName,
+  username: user.username,
+  avatar: user.avatar,
+  status: user.status,
+  isOnline: user.isOnline,
+  lastSeenAt: user.lastSeenAt
+});
+
 export const getProfile = asyncHandler(async (req, res) => {
   res.json({ user: safeUser(req.user) });
 });
@@ -60,9 +70,10 @@ export const searchUsers = asyncHandler(async (req, res) => {
       ]
     },
     limit: 20,
+    attributes: ['id', 'fullName', 'username', 'avatar', 'status', 'isOnline', 'lastSeenAt'],
     order: [['createdAt', 'DESC']]
   });
-  res.json({ users: users.map(safeUser) });
+  res.json({ users: users.map(chatListUser) });
 });
 
 export const listUsers = asyncHandler(async (req, res) => {
@@ -72,14 +83,12 @@ export const listUsers = asyncHandler(async (req, res) => {
       status: 'approved',
       isDeleted: false
     },
-    attributes: { exclude: ['password'] },
+    attributes: ['id', 'fullName', 'username', 'avatar', 'status', 'isOnline', 'lastSeenAt'],
     order: [['fullName', 'ASC']]
-
-    
   });
   // Exclude current user from list
   const filtered = users.filter((u) => u.id !== req.user.id);
-  res.json({ users: filtered.map(safeUser) });
+  res.json({ users: filtered.map(chatListUser) });
 });
 
 export const blockUser = asyncHandler(async (req, res) => {

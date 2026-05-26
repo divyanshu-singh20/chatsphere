@@ -115,11 +115,6 @@ export default function MainLayout() {
           </AnimatePresence>
         </main>
       </div>
-      <div className="pointer-events-none fixed right-3 top-3 z-[60] lg:hidden sm:right-4 sm:top-4">
-        <div className="pointer-events-auto">
-          <MobileAccountMenu user={user} logout={logout} />
-        </div>
-      </div>
       <MobileBottomNav />
       <CallOverlay
         call={call}

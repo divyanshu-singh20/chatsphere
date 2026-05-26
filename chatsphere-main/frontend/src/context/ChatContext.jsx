@@ -239,8 +239,6 @@ export function ChatProvider({ children }) {
     }
 
     if (message.id) handledMessageIdsRef.current.add(message.id);
-    console.log('[socket][receive_message] NEW MESSAGE:', message);
-
     const currentChatId = selectedChatRef.current?.id ? Number(selectedChatRef.current.id) : null;
     const incomingChatId = Number(message.chatId);
     const isOwnMessage = Number(message.senderId) === Number(user?.id);
@@ -540,10 +538,8 @@ export function ChatProvider({ children }) {
 
   const selectChat = async (chat) => {
     const socket = getSocket();
-    console.log('[chat][selectChat]', { chatId: chat?.id || null, previousChatId: selectedChat?.id || null, socketConnected: socket.connected });
     if (selectedChat?.id && selectedChat.id !== chat?.id) {
       socket.emit(SOCKET_EVENTS.LEAVE_CHAT, { chatId: selectedChat.id });
-      console.log('[chat][room] leave-chat emitted', { chatId: selectedChat.id });
     }
     setSelectedChat(chat);
     if (chat?.id) {
@@ -552,7 +548,6 @@ export function ChatProvider({ children }) {
     if (!chat) return;
 
     socket.emit(SOCKET_EVENTS.JOIN_CHAT, { chatId: chat.id });
-    console.log('[chat][room] join-chat emitted', { chatId: chat.id });
 
     setLoadingMessages(true);
     try {
