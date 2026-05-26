@@ -963,6 +963,8 @@ export function CallProvider({ children }) {
         answer,
         callId: sessionId
       });
+
+      markConnected();
       console.debug('[webrtc][answer-emitted]', {
         callId: sessionId,
         chatId: currentCallRef.current.chatId || null,
@@ -989,7 +991,7 @@ export function CallProvider({ children }) {
     } finally {
       acceptingCallRef.current = false;
     }
-  }, [attachPeerState, clearTerminalResetTimeout, ensurePeerConnection, emitSocketEvent, flushPendingIceCandidates, getLocalStream, resetCallSession, setCallState, setSoundBlocked]);
+  }, [attachPeerState, clearTerminalResetTimeout, ensurePeerConnection, emitSocketEvent, flushPendingIceCandidates, getLocalStream, markConnected, resetCallSession, setCallState, setSoundBlocked]);
 
   const rejectCall = useCallback((reason = 'rejected') => {
     if (!callStartedRef.current) return;
@@ -1307,6 +1309,8 @@ export function CallProvider({ children }) {
         status: 'connecting',
         callId: answerCallId || current.callId || pendingCallIdRef.current || null
       }));
+
+      markConnected();
     } catch (error) {
       console.error('[webrtc] remote answer failed', error);
       resetCallSession('failed', { keepEndedState: false });
@@ -1315,7 +1319,7 @@ export function CallProvider({ children }) {
         appliedAnswerCallIdRef.current = null;
       }
     }
-  }, [clearUnansweredCallTimeout, resetCallSession, setCallState]);
+  }, [clearUnansweredCallTimeout, markConnected, resetCallSession, setCallState]);
 
   const handleIncomingIce = useCallback(async (payload = {}) => {
     console.debug('[socket][receive]', {

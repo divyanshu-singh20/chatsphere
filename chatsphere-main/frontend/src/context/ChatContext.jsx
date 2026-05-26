@@ -7,6 +7,41 @@ import { SOCKET_EVENTS } from '../utils/constants';
 
 const ChatContext = createContext(null);
 
+const getEntityId = (entry) => {
+  const rawId = entry?.id ?? entry?._id ?? null;
+  const parsedId = Number(rawId);
+  return Number.isInteger(parsedId) && parsedId > 0 ? parsedId : null;
+};
+
+const mergeUserEntries = (existing, incoming) => {
+  const merged = { ...(existing || {}), ...(incoming || {}) };
+  const id = getEntityId(incoming) || getEntityId(existing);
+
+  if (id) {
+    merged.id = id;
+  }
+
+  return merged;
+};
+
+const getChatMembers = (chat = {}) => (chat.members || []).filter(Boolean);
+
+const getChatIdentityKey = (chat) => {
+  const chatId = getEntityId(chat);
+  if (!chatId) return null;
+
+  if (chat?.isGroup) {
+    return `group:${chatId}`;
+  }
+
+  const memberIds = getChatMembers(chat)
+    .map((member) => getEntityId(member))
+    .filter((id) => Number.isInteger(id) && id > 0)
+    .sort((a, b) => a - b);
+
+  return `direct:${memberIds.join(':') || chatId}`;
+};
+
 export function ChatProvider({ children }) {
   const { user } = useAuth();
   const [chats, setChats] = useState([]);
@@ -28,13 +63,17 @@ export function ChatProvider({ children }) {
   const [replyingToMessage, setReplyingToMessage] = useState(null);
 
   const uniqueUsersById = useCallback((list = []) => {
-    const seen = new Set();
-    return list.filter((entry) => {
-      const id = Number(entry?.id);
-      if (!id || seen.has(id)) return false;
-      seen.add(id);
-      return true;
+    const merged = new Map();
+
+    list.forEach((entry) => {
+      const id = getEntityId(entry);
+      if (!id) return;
+
+      const existing = merged.get(id);
+      merged.set(id, existing ? mergeUserEntries(existing, entry) : { ...entry, id });
     });
+
+    return Array.from(merged.values());
   }, []);
 
   const uniqueChatsByConversation = useCallback((list = []) => {
@@ -42,16 +81,8 @@ export function ChatProvider({ children }) {
     return [...list]
       .sort((a, b) => new Date(b.updatedAt || b.lastMessageAt || 0) - new Date(a.updatedAt || a.lastMessageAt || 0))
       .filter((chat) => {
-        const chatId = Number(chat?.id);
-        if (!chatId) return false;
-
-        const memberIds = (chat.members || [])
-          .map((member) => Number(member?.id))
-          .filter((id) => Number.isInteger(id) && id > 0);
-
-        const key = chat.isGroup
-          ? `group:${chatId}`
-          : `direct:${Array.from(new Set(memberIds)).sort((a, b) => a - b).join(':') || chatId}`;
+        const key = getChatIdentityKey(chat);
+        if (!key) return false;
 
         if (seen.has(key)) return false;
         seen.add(key);
@@ -79,7 +110,7 @@ export function ChatProvider({ children }) {
   const mergeChatsUnique = useCallback((list = []) => {
     const map = new Map();
     list.forEach((chat) => {
-      const id = Number(chat?.id);
+      const id = getEntityId(chat);
       if (!id) return;
       map.set(id, chat);
     });
@@ -95,17 +126,17 @@ export function ChatProvider({ children }) {
   ), [mergeChatsUnique, sortChatsByUpdatedAt, uniqueChatsByConversation]);
 
   const upsertChat = useCallback((list = [], nextChat, { prepend = false } = {}) => {
-    if (!nextChat?.id) return list;
-    const id = Number(nextChat.id);
-    const exists = list.some((chat) => Number(chat?.id) === id);
+    const id = getEntityId(nextChat);
+    if (!id) return list;
+    const exists = list.some((chat) => getEntityId(chat) === id);
     if (!exists) {
       return prepend ? [nextChat, ...list] : [...list, nextChat];
     }
-    return list.map((chat) => (Number(chat?.id) === id ? { ...chat, ...nextChat } : chat));
+    return list.map((chat) => (getEntityId(chat) === id ? { ...chat, ...nextChat, id } : chat));
   }, []);
 
   const applyPresenceToMember = useCallback((member, payload) => {
-    if (Number(member?.id) !== Number(payload?.userId)) return member;
+    if (getEntityId(member) !== Number(payload?.userId)) return member;
     return {
       ...member,
       isOnline: !!payload.isOnline,
@@ -419,7 +450,7 @@ export function ChatProvider({ children }) {
       setChats((current) => {
         const next = current
           .map((chat) => {
-            const nextMembers = (chat.members || []).filter((member) => Number(member.id) !== blockedUserId && (Number(member.id) === Number(user?.id) || member.status === 'approved'));
+            const nextMembers = (chat.members || []).filter((member) => getEntityId(member) !== blockedUserId && (getEntityId(member) === Number(user?.id) || member.status === 'approved'));
             if (!chat.isGroup && nextMembers.length < 2) return null;
             if (chat.isGroup && nextMembers.length < 2) return null;
             return { ...chat, members: nextMembers };
@@ -456,17 +487,18 @@ export function ChatProvider({ children }) {
     };
     const handleUserApproved = (payload) => {
       const userPayload = payload?.user || payload;
-      if (!userPayload || Number(userPayload.id) === Number(user?.id)) return;
+      const approvedUserId = getEntityId(userPayload);
+      if (!approvedUserId || approvedUserId === Number(user?.id)) return;
 
       // Merge into users list (deduped)
-      setUsers((current) => uniqueUsersById([userPayload, ...current.filter((u) => Number(u.id) !== Number(userPayload.id))]));
+      setUsers((current) => uniqueUsersById([userPayload, ...current.filter((u) => getEntityId(u) !== approvedUserId)]));
 
       // If any existing direct chat involves this user, update chat members
       setChats((current) => current.map((chat) => {
         if (!chat || !chat.members) return chat;
-        const hasMember = (chat.members || []).some((m) => Number(m.id) === Number(userPayload.id));
+        const hasMember = (chat.members || []).some((m) => getEntityId(m) === approvedUserId);
         if (!hasMember) return chat;
-        return { ...chat, members: (chat.members || []).map((m) => (Number(m.id) === Number(userPayload.id) ? { ...m, ...userPayload } : m)) };
+        return { ...chat, members: (chat.members || []).map((m) => (getEntityId(m) === approvedUserId ? { ...m, ...userPayload, id: approvedUserId } : m)) };
       }));
     };
     const handleUnreadCountUpdate = (payload) => {

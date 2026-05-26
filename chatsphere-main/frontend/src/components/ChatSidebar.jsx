@@ -5,6 +5,12 @@ import useDebounce from '../hooks/useDebounce';
 import { useMemo, useState, memo } from 'react';
 import { getPresenceLabel } from '../utils/lastSeen';
 
+const getEntityId = (entry) => {
+  const rawId = entry?.id ?? entry?._id ?? null;
+  const parsedId = Number(rawId);
+  return Number.isInteger(parsedId) && parsedId > 0 ? parsedId : null;
+};
+
 function ChatSidebar({ chats, users = [], selectedChat, onSelect, onlineUsers = [], currentUserId, loading, onStartDirect, loadingUsers }) {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 250);
@@ -23,7 +29,7 @@ function ChatSidebar({ chats, users = [], selectedChat, onSelect, onlineUsers = 
     (chats || []).forEach((chat) => {
       if (chat?.isGroup) return;
       (chat.members || []).forEach((member) => {
-        const id = Number(member?.id);
+        const id = getEntityId(member);
         if (id) ids.add(id);
       });
     });
@@ -33,7 +39,7 @@ function ChatSidebar({ chats, users = [], selectedChat, onSelect, onlineUsers = 
   const uniqueUsers = useMemo(() => {
     const seen = new Set();
     return (users || []).filter((entry) => {
-      const id = Number(entry?.id);
+      const id = getEntityId(entry);
       if (!id || seen.has(id)) return false;
       if (directChatUserIds.has(id)) return false;
       seen.add(id);
@@ -83,14 +89,15 @@ function ChatSidebar({ chats, users = [], selectedChat, onSelect, onlineUsers = 
         {loadingUsers ? <div className="py-2 text-center text-[var(--wa-text-secondary)]">Loading users...</div> : null}
         {!loadingUsers && uniqueUsers.length === 0 ? <div className="py-2 text-center text-[var(--wa-text-secondary)]">No users found.</div> : null}
         {uniqueUsers.map((u) => {
-          const isActive = selectedChat?.members?.some((m) => m.id === u.id) && !selectedChat?.isGroup;
-          const isOnline = onlineUsers.includes(u.id);
+          const userId = getEntityId(u);
+          const isActive = selectedChat?.members?.some((m) => getEntityId(m) === userId) && !selectedChat?.isGroup;
+          const isOnline = onlineUsers.includes(userId);
           const presenceLabel = getPresenceLabel({ isOnline, lastSeenAt: u.lastSeenAt });
           return (
             <button
-              key={`user-${u.id}`}
+              key={`user-${userId}`}
               onClick={async () => {
-                if (onStartDirect) await onStartDirect(u.id);
+                if (onStartDirect && userId) await onStartDirect(userId);
               }}
               className={`flex w-full items-center gap-3 rounded-[14px] px-3 py-2 transition ${isActive ? 'chat-left-active bg-[var(--wa-card-hover)]' : 'hover:bg-[var(--wa-card-hover)]'}`}
             >
@@ -112,9 +119,9 @@ function ChatSidebar({ chats, users = [], selectedChat, onSelect, onlineUsers = 
         {uniqueChats.map((chat) => {
           const isActive = selectedChat?.id === chat.id;
           const isOnline = (chat.members || [])
-            .filter((member) => Number(member?.id) !== Number(currentUserId))
-            .some((member) => onlineUsers.includes(member.id));
-          const peer = (chat.members || []).find((member) => Number(member?.id) !== Number(currentUserId)) || chat;
+            .filter((member) => getEntityId(member) !== Number(currentUserId))
+            .some((member) => onlineUsers.includes(getEntityId(member)));
+          const peer = (chat.members || []).find((member) => getEntityId(member) !== Number(currentUserId)) || chat;
           const presenceLabel = getPresenceLabel({ isOnline, lastSeenAt: peer?.lastSeenAt || chat.lastSeenAt });
           const unreadCount = Number(chat.unreadCount || 0);
           return (
