@@ -755,6 +755,7 @@ export function CallProvider({ children }) {
       });
     }
 
+    callSoundManager.stopAll();
     resetCallSession(normalizedReason, { keepEndedState: false });
   }, [emitSocketEvent, resetCallSession]);
 
@@ -880,6 +881,8 @@ export function CallProvider({ children }) {
     pendingCallIdRef.current = sessionId;
     acceptingCallRef.current = true;
 
+    callSoundManager.stopAll();
+
     console.debug('[webrtc][offer-received]', {
       callId: sessionId,
       chatId: currentCallRef.current.chatId || null,
@@ -989,6 +992,7 @@ export function CallProvider({ children }) {
       toast.error('Missed call');
     }
 
+    callSoundManager.stopAll();
     resetCallSession(normalizedReason, { keepEndedState: false });
   }, [emitSocketEvent, resetCallSession]);
 
