@@ -204,7 +204,7 @@ export default function MessageComposer({ onSend, onTyping, onStopTyping, disabl
     <div className="w-full pb-[env(safe-area-inset-bottom)]">
       <AnimatePresence>
         {replyToMessage ? (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="mb-2 rounded-2xl border border-[var(--wa-primary)]/20 bg-[var(--wa-card)] px-4 py-3 text-sm text-[var(--wa-text)] shadow-sm">
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="mb-2 rounded-[22px] border border-[var(--wa-primary)]/20 bg-[rgba(20,20,20,0.96)] px-4 py-3 text-sm text-[var(--wa-text)] shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--wa-text-secondary)]">Replying to {replyToMessage.sender?.fullName || replyToMessage.sender?.username || 'message'}</p>
@@ -227,14 +227,14 @@ export default function MessageComposer({ onSend, onTyping, onStopTyping, disabl
         <button
           type="button"
           onClick={() => setShowEmoji((v) => !v)}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-full text-[var(--wa-primary)] transition-all active:scale-95 hover:bg-[var(--wa-card-hover)] hover:shadow-[0_0_0_1px_rgba(10,132,255,0.18),0_0_16px_rgba(10,132,255,0.14)]"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-[var(--wa-primary)] transition-all active:scale-95 hover:bg-white/10 hover:shadow-[0_0_0_1px_rgba(10,132,255,0.18),0_0_18px_rgba(10,132,255,0.12)]"
           title="Emoji picker"
           aria-label="Open emoji picker"
         >
           <FiSmile />
         </button>
 
-        <label className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-full text-[var(--wa-primary)] transition-all active:scale-95 hover:bg-[var(--wa-card-hover)] hover:shadow-[0_0_0_1px_rgba(10,132,255,0.18),0_0_16px_rgba(10,132,255,0.14)]">
+        <label className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/5 text-[var(--wa-primary)] transition-all active:scale-95 hover:bg-white/10 hover:shadow-[0_0_0_1px_rgba(10,132,255,0.18),0_0_18px_rgba(10,132,255,0.12)]">
           <input type="file" multiple className="hidden" onChange={handleFileChange} />
           <FiPaperclip />
         </label>
@@ -259,7 +259,7 @@ export default function MessageComposer({ onSend, onTyping, onStopTyping, disabl
           onBlur={emitStopTyping}
           placeholder="Type a message"
           rows={1}
-          className="composer-input min-h-11"
+          className="composer-input min-h-11 bg-[rgba(17,17,17,0.98)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]"
         />
 
         <div className="flex items-center gap-[var(--space-sm)]">
@@ -268,7 +268,7 @@ export default function MessageComposer({ onSend, onTyping, onStopTyping, disabl
               type="button"
               onClick={startRecording}
               disabled={disabled || sendingVoice}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full text-[var(--wa-primary)] transition-all active:scale-95 hover:bg-[var(--wa-card-hover)] hover:shadow-[0_0_0_1px_rgba(10,132,255,0.18),0_0_16px_rgba(10,132,255,0.14)]"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-[var(--wa-primary)] transition-all active:scale-95 hover:bg-white/10 hover:shadow-[0_0_0_1px_rgba(10,132,255,0.18),0_0_18px_rgba(10,132,255,0.12)]"
               title="Record voice message"
               aria-label="Record voice message"
             >

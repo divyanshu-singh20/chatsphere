@@ -68,20 +68,20 @@ function ChatSidebar({ chats, users = [], selectedChat, onSelect, onlineUsers = 
   }, [filteredChats]);
 
   return (
-    <div className="flex h-screen flex-col bg-[var(--wa-sidebar-bg)]">
-      <div className="flex h-16 items-center justify-between px-4 py-2 border-b border-[var(--wa-border)] bg-[var(--wa-sidebar-bg)]">
+    <div className="flex h-screen flex-col bg-[linear-gradient(180deg,rgba(12,12,12,0.98),rgba(8,8,8,0.98))]">
+      <div className="flex h-16 items-center justify-between border-b border-white/5 bg-[rgba(10,10,10,0.88)] px-4 py-2 backdrop-blur-xl">
         <div>
           <h2 className="text-lg font-semibold text-[var(--wa-text)]">Chats</h2>
           <p className="text-xs text-[var(--wa-muted)]">{onlineUsers.length} online</p>
         </div>
         <div className="flex gap-1">
-          <button className="h-9 w-9 rounded-full text-[var(--wa-primary)] inline-flex items-center justify-center transition hover:bg-[var(--wa-card-hover)] hover:shadow-[0_0_0_1px_rgba(10,132,255,0.18),0_0_16px_rgba(10,132,255,0.14)]"><FiSearch /></button>
-          <button className="h-9 w-9 rounded-full text-[var(--wa-primary)] inline-flex items-center justify-center transition hover:bg-[var(--wa-card-hover)] hover:shadow-[0_0_0_1px_rgba(10,132,255,0.18),0_0_16px_rgba(10,132,255,0.14)]"><FiUsers /></button>
+          <button className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/5 bg-white/5 text-[var(--wa-primary)] transition hover:bg-white/10 hover:shadow-[0_0_0_1px_rgba(10,132,255,0.18),0_0_16px_rgba(10,132,255,0.14)]"><FiSearch /></button>
+          <button className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/5 bg-white/5 text-[var(--wa-primary)] transition hover:bg-white/10 hover:shadow-[0_0_0_1px_rgba(10,132,255,0.18),0_0_16px_rgba(10,132,255,0.14)]"><FiUsers /></button>
         </div>
       </div>
       <div className="px-4 py-3 border-b border-[var(--wa-border)]">
         <div className="relative">
-          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search or start new chat" className="pl-4 bg-[var(--wa-card-hover)] border-[var(--wa-border)]" />
+          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search or start new chat" className="pl-4 bg-[rgba(255,255,255,0.04)] border-white/5 rounded-full shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]" />
         </div>
       </div>
       <div className="mt-0 flex-1 overflow-y-auto px-2 py-2 wa-scroll">
@@ -99,7 +99,7 @@ function ChatSidebar({ chats, users = [], selectedChat, onSelect, onlineUsers = 
               onClick={async () => {
                 if (onStartDirect && userId) await onStartDirect(userId);
               }}
-              className={`flex w-full items-center gap-3 rounded-[14px] px-3 py-2 transition ${isActive ? 'chat-left-active bg-[var(--wa-card-hover)]' : 'hover:bg-[var(--wa-card-hover)]'}`}
+              className={`flex w-full items-center gap-3 rounded-[20px] px-3 py-2.5 transition-all duration-200 ${isActive ? 'chat-left-active bg-[rgba(10,132,255,0.10)]' : 'hover:-translate-y-0.5 hover:bg-[rgba(255,255,255,0.04)]'}`}
             >
               <Avatar src={u.avatar} name={u.fullName} online={isOnline} size="md" />
               <div className="min-w-0 flex-1">

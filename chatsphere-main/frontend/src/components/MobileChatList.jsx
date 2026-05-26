@@ -27,7 +27,7 @@ function MobileChatList({ chats = [], onlineUsers = [], currentUserId, onSelectC
   }
 
   return (
-    <div className="space-y-0.5">
+    <div className="space-y-1 px-2 pb-3 pt-2">
       {uniqueChats.map((chat) => {
         const isOnline = (chat.members || [])
           .filter((member) => Number(member?.id) !== Number(currentUserId))
@@ -41,7 +41,7 @@ function MobileChatList({ chats = [], onlineUsers = [], currentUserId, onSelectC
             key={chat.id}
             type="button"
             onClick={() => onSelectChat?.(chat)}
-            className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors duration-200 active:scale-[0.99] active:bg-[var(--wa-card-hover)] hover:bg-[var(--wa-card-hover)]"
+            className="flex w-full items-center gap-3 rounded-[24px] border border-transparent px-3 py-3 text-left transition-all duration-200 active:scale-[0.99] active:bg-[var(--wa-card-hover)] hover:-translate-y-0.5 hover:border-white/5 hover:bg-[rgba(255,255,255,0.04)]"
           >
             <Avatar src={chat.avatar} name={chat.name} online={isOnline} size="md" />
 

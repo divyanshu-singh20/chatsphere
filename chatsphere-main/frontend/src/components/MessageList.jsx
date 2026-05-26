@@ -52,15 +52,15 @@ function MessageList({ messages, currentUserId, onReply, onReact, onEdit, onDele
   }
 
   return (
-    <div className="flex h-full flex-col gap-3 overflow-y-auto pr-2 py-4">
+    <div className="flex h-full flex-col gap-3 overflow-y-auto px-1 py-4 md:px-2">
       {Object.entries(messageGroups).map(([date, dateMessages]) => (
-        <div key={date}>
+        <div key={date} className="space-y-3">
           <div className="message-separator animate-fadeIn">
             {formatDateSeparator(date)}
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {dateMessages.map((message) => (
-              <div key={message.id} className="animate-slideInUp">
+              <div key={message.id} className="animate-messageIn">
                 <MessageBubble
                   message={message}
                   mine={message.senderId === currentUserId}
