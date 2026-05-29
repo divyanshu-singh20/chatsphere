@@ -11,16 +11,16 @@ const MessageBubbleComponent = ({ message, mine }) => {
   const senderName = message.sender?.fullName || message.sender?.username || 'Unknown user';
 
   return (
-    <div className={`flex min-w-0 w-full ${mine ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex w-full ${mine ? 'justify-end' : 'justify-start'}`}>
       {!mine ? (
         <div className="mr-2 mt-auto shrink-0">
           <Avatar src={message.sender?.avatar} name={message.sender?.fullName} size="sm" />
         </div>
       ) : null}
 
-      <div className={`flex min-w-0 max-w-full flex-col ${mine ? 'items-end' : 'items-start'} gap-0.5`}>
+      <div className={`flex max-w-full flex-col ${mine ? 'items-end' : 'items-start'} gap-0.5 ${mine ? 'ml-auto' : 'mr-auto'}`}>
         <div
-          className={`message-bubble inline-flex w-fit min-w-0 max-w-[84vw] flex-col gap-1 rounded-2xl px-3 py-2 text-left text-sm leading-snug break-words sm:max-w-[72vw] md:max-w-[65%] ${mine ? 'message-bubble--mine self-end' : 'message-bubble--other self-start'}`}
+          className={`message-bubble inline-flex w-fit min-w-[80px] max-w-[75%] flex-col items-start gap-1 rounded-2xl px-3 py-2 text-left text-sm leading-normal ${mine ? 'message-bubble--mine self-end' : 'message-bubble--other self-start'}`}
         >
           {!mine ? (
             <div className="flex items-center gap-2 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
@@ -58,7 +58,7 @@ const MessageBubbleComponent = ({ message, mine }) => {
           ) : null}
 
           {message.content ? (
-            <p className={`whitespace-pre-wrap break-words ${message.deletedForEveryone ? 'italic opacity-70' : ''}`}>
+            <p className={`inline-block w-fit max-w-full whitespace-pre-wrap break-words leading-normal ${message.deletedForEveryone ? 'italic opacity-70' : ''}`}>
               {message.content}
             </p>
           ) : null}
