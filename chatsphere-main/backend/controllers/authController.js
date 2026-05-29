@@ -115,10 +115,20 @@ export const register = asyncHandler(async (req, res) => {
 export const login = asyncHandler(async (req, res) => {
   try {
     const { identifier, password } = req.body;
+    console.log('[auth][login] incoming', {
+      identifier,
+      passwordProvided: !!password,
+      nodeEnv: process.env.NODE_ENV || 'development'
+    });
+
     if (!identifier || !password) {
+      console.log('[auth][login] rejected: missing credentials');
       return res.status(400).json({ success: false, message: 'Missing credentials' });
     }
+
     const normalizedIdentifier = normalizeIdentifier(identifier);
+    console.log('[auth][login] normalized identifier', normalizedIdentifier);
+
     const user = await User.findOne({
       where: {
         [Op.or]: [
@@ -128,7 +138,18 @@ export const login = asyncHandler(async (req, res) => {
         ]
       }
     });
+
+    console.log('[auth][login] db lookup result', user ? {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+      status: user.status,
+      hasPassword: !!user.password
+    } : null);
+
     if (!user) {
+      console.log('[auth][login] rejected: user not found');
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
@@ -140,15 +161,20 @@ export const login = asyncHandler(async (req, res) => {
 
     // Reject non-approved users with 403 (forbidden) and a clear message.
     if (user.status !== 'approved') {
+      console.log('[auth][login] rejected: user not approved', { role: user.role, status: user.status });
       return res.status(403).json({ success: false, message: getLoginRejectionMessage(user) });
     }
 
     const match = await bcrypt.compare(password, user.password);
+    console.log('[auth][login] password compare result', { userId: user.id, match });
     if (!match) {
+      console.log('[auth][login] rejected: password mismatch');
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
     const token = signToken({ id: user.id });
+    console.log('[auth][login] token generation status', { userId: user.id, tokenGenerated: !!token });
+
     const isProduction = process.env.NODE_ENV === 'production';
     res.cookie('token', token, {
       httpOnly: true,
@@ -156,6 +182,7 @@ export const login = asyncHandler(async (req, res) => {
       secure: isProduction,
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
+    console.log('[auth][login] success', { userId: user.id, role: user.role });
     return res.json({ token, user: toSafeUser(user) });
   } catch (error) {
     console.error('login error', error);
