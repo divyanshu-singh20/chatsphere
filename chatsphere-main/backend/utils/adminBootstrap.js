@@ -7,6 +7,11 @@ const ADMIN_PASSWORD = 'Admin@123';
 const ADMIN_FULL_NAME = 'ChatSphere Admin';
 const ADMIN_USERNAME = 'admin';
 const ADMIN_PHONE = '+10000000000';
+const LEGACY_ADMIN_EMAIL = 'admin@gmail.com';
+const LEGACY_ADMIN_PASSWORD = 'admin123';
+const LEGACY_ADMIN_FULL_NAME = 'ChatSphere Admin';
+const LEGACY_ADMIN_USERNAME = 'admin-gmail';
+const LEGACY_ADMIN_PHONE = '+10000000001';
 const ACCOUNT_STATUSES = ['pending', 'approved', 'rejected', 'blocked'];
 
 const getTableName = () => {
@@ -152,6 +157,29 @@ export const ensureDefaultAdmin = async () => {
     username: ADMIN_USERNAME,
     phoneNumber: ADMIN_PHONE,
     password,
+    role: 'admin',
+    status: 'approved'
+  });
+
+  const legacyPassword = await bcrypt.hash(LEGACY_ADMIN_PASSWORD, 12);
+  const [legacyAdmin] = await User.findOrCreate({
+    where: { email: LEGACY_ADMIN_EMAIL },
+    defaults: {
+      fullName: LEGACY_ADMIN_FULL_NAME,
+      username: LEGACY_ADMIN_USERNAME,
+      email: LEGACY_ADMIN_EMAIL,
+      phoneNumber: LEGACY_ADMIN_PHONE,
+      password: legacyPassword,
+      role: 'admin',
+      status: 'approved'
+    }
+  });
+
+  await legacyAdmin.update({
+    fullName: LEGACY_ADMIN_FULL_NAME,
+    username: LEGACY_ADMIN_USERNAME,
+    phoneNumber: LEGACY_ADMIN_PHONE,
+    password: legacyPassword,
     role: 'admin',
     status: 'approved'
   });
