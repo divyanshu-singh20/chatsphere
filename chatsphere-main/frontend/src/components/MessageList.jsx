@@ -34,7 +34,7 @@ const groupMessagesByDate = (messages) => {
   return groups;
 };
 
-function MessageList({ messages, currentUserId, onReply, onReact, onEdit, onDelete }) {
+function MessageList({ messages, currentUserId }) {
   const uniqueMessages = useMemo(() => {
     const seen = new Set();
     return (messages || []).filter((message) => {
@@ -65,10 +65,6 @@ function MessageList({ messages, currentUserId, onReply, onReact, onEdit, onDele
                 <MessageBubble
                   message={message}
                   mine={isMine(message)}
-                  onReply={onReply}
-                  onReact={onReact}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
                 />
               </div>
             ))}

@@ -6,17 +6,14 @@ const formatTime = (value) => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 };
 
-const defaultReactions = ['👍', '❤️', '😂', '😮'];
-
-const MessageBubbleComponent = ({ message, mine, onReply, onReact, onEdit, onDelete }) => {
+const MessageBubbleComponent = ({ message, mine }) => {
   const isAudioMessage = message.mediaType === 'audio';
-  const reactions = Array.isArray(message.reactions) ? message.reactions : [];
   const senderName = message.sender?.fullName || message.sender?.username || 'Unknown user';
 
   return (
-    <div className={`group flex min-w-0 w-full ${mine ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex min-w-0 w-full ${mine ? 'justify-end' : 'justify-start'}`}>
       {!mine ? (
-        <div className="mr-2 mt-auto shrink-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+        <div className="mr-2 mt-auto shrink-0">
           <Avatar src={message.sender?.avatar} name={message.sender?.fullName} size="sm" />
         </div>
       ) : null}
@@ -65,43 +62,6 @@ const MessageBubbleComponent = ({ message, mine, onReply, onReact, onEdit, onDel
               {message.content}
             </p>
           ) : null}
-
-          {reactions.length > 0 ? (
-            <div className="flex flex-wrap gap-1 pt-0.5">
-              {reactions.map((reaction) => (
-                <button
-                  type="button"
-                  key={reaction.emoji}
-                  onClick={() => onReact?.(message, reaction.emoji)}
-                  className="inline-flex items-center gap-1 rounded-full bg-black/5 px-2 py-1 text-[11px] leading-none text-zinc-700 dark:bg-white/5 dark:text-zinc-200"
-                >
-                  <span>{reaction.emoji}</span>
-                  <span>{reaction.count || 1}</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="flex flex-wrap items-center gap-1 pt-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-            {defaultReactions.map((emoji) => (
-              <button key={emoji} type="button" onClick={() => onReact?.(message, emoji)} className="rounded-full bg-black/5 px-2 py-1 text-[11px] leading-none text-zinc-700 dark:bg-white/5 dark:text-zinc-200">
-                {emoji}
-              </button>
-            ))}
-            <button type="button" onClick={() => onReply?.(message)} className="rounded-full bg-black/5 px-2 py-1 text-[11px] leading-none text-zinc-700 dark:bg-white/5 dark:text-zinc-200">
-              Reply
-            </button>
-            {mine ? (
-              <>
-                <button type="button" onClick={() => onEdit?.(message)} className="rounded-full bg-black/5 px-2 py-1 text-[11px] leading-none text-zinc-700 dark:bg-white/5 dark:text-zinc-200">
-                  Edit
-                </button>
-                <button type="button" onClick={() => onDelete?.(message)} className="rounded-full bg-black/5 px-2 py-1 text-[11px] leading-none text-zinc-700 dark:bg-white/5 dark:text-zinc-200">
-                  Delete
-                </button>
-              </>
-            ) : null}
-          </div>
 
           <div className={`flex items-center justify-end gap-1 whitespace-nowrap text-[10px] leading-none ${mine ? 'text-black/55 dark:text-white/55' : 'text-zinc-500 dark:text-zinc-400'}`}>
             <span>{formatTime(message.createdAt || Date.now())}</span>

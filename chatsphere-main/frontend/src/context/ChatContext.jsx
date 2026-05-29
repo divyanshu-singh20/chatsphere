@@ -61,7 +61,6 @@ export function ChatProvider({ children }) {
   const handledClientMsgIdsRef = useRef(new Set());
   const notificationCooldownRef = useRef(new Map());
   const listenersAttachedRef = useRef(false);
-  const [replyingToMessage, setReplyingToMessage] = useState(null);
 
   const uniqueUsersById = useCallback((list = []) => {
     const merged = new Map();
@@ -416,34 +415,6 @@ export function ChatProvider({ children }) {
         content: payload.deletedForEveryone ? 'This message was deleted' : message.content
       }));
     };
-    const handleMessageReaction = (payload) => {
-      if (!payload?.messageId) return;
-      patchMessageById(payload.messageId, (message) => {
-        const reactions = Array.isArray(message.reactions) ? [...message.reactions] : [];
-        const adjustReaction = (emoji, delta) => {
-          const index = reactions.findIndex((reaction) => reaction.emoji === emoji);
-          if (index < 0) {
-            if (delta > 0) reactions.push({ emoji, count: delta });
-            return;
-          }
-          const nextCount = Number(reactions[index].count || 1) + delta;
-          if (nextCount <= 0) {
-            reactions.splice(index, 1);
-            return;
-          }
-          reactions[index] = { ...reactions[index], count: nextCount };
-        };
-        if (payload.removed) {
-          adjustReaction(payload.emoji, -1);
-          return { ...message, reactions };
-        }
-        if (payload.previousEmoji && payload.previousEmoji !== payload.emoji) {
-          adjustReaction(payload.previousEmoji, -1);
-        }
-        adjustReaction(payload.emoji, 1);
-        return { ...message, reactions };
-      });
-    };
     const handleAccountStatusChange = (payload) => {
       const blockedUserId = Number(payload?.userId);
       if (!blockedUserId || blockedUserId === Number(user?.id)) return;
@@ -533,7 +504,6 @@ export function ChatProvider({ children }) {
     socket.off('message:seen');
     socket.off('message:edited');
     socket.off('message:deleted');
-    socket.off('message:reaction');
     socket.off('account:status-changed');
     socket.off('user:online');
     socket.off('user:offline');
@@ -555,7 +525,6 @@ export function ChatProvider({ children }) {
     socket.on('message:seen', handleMessageSeen);
     socket.on('message:edited', handleMessageEdited);
     socket.on('message:deleted', handleMessageDeleted);
-    socket.on('message:reaction', handleMessageReaction);
     socket.on('account:status-changed', handleAccountStatusChange);
     socket.on('user:online', (payload) => handleUserPresence({ ...payload, type: 'online' }));
     socket.on('user:offline', (payload) => handleUserPresence({ ...payload, type: 'offline' }));
@@ -579,7 +548,6 @@ export function ChatProvider({ children }) {
       socket.off('message:seen', handleMessageSeen);
       socket.off('message:edited', handleMessageEdited);
       socket.off('message:deleted', handleMessageDeleted);
-      socket.off('message:reaction', handleMessageReaction);
       socket.off('account:status-changed', handleAccountStatusChange);
       socket.off('user:online');
       socket.off('user:offline');
@@ -727,11 +695,6 @@ export function ChatProvider({ children }) {
     return data?.message || null;
   }, [handleIncomingMessage]);
 
-  const reactToMessage = useCallback(async (messageId, emoji) => {
-    const { data } = await api.post(`/messages/${messageId}/reactions`, { emoji });
-    return data?.reaction || null;
-  }, []);
-
   const startTyping = () => {
     const socket = getSocket();
     if (!selectedChat) return;
@@ -762,8 +725,6 @@ export function ChatProvider({ children }) {
     () => ({
       chats,
       users,
-      replyingToMessage,
-      setReplyingToMessage,
       messages,
       selectedChat,
       onlineUsers,
@@ -778,13 +739,12 @@ export function ChatProvider({ children }) {
       sendMessage,
       editMessage,
       deleteMessage,
-      reactToMessage,
       startTyping,
       stopTyping,
       setNotifications,
       setChats
     }),
-    [chats, messages, selectedChat, onlineUsers, typingUserIds, notifications, loadingChats, loadingMessages, users, loadingUsers, replyingToMessage, editMessage, deleteMessage, reactToMessage]
+    [chats, messages, selectedChat, onlineUsers, typingUserIds, notifications, loadingChats, loadingMessages, users, loadingUsers, editMessage, deleteMessage]
   );
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

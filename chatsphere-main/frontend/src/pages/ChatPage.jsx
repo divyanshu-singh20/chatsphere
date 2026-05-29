@@ -31,11 +31,8 @@ export default function ChatPage() {
     stopTyping,
     editMessage,
     deleteMessage,
-    reactToMessage,
     startDirectChat,
-    loadingUsers,
-    replyingToMessage,
-    setReplyingToMessage
+    loadingUsers
   } = useChat();
   const scrollRef = useRef(null);
   const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.matchMedia('(max-width: 1023px)').matches : false));
@@ -76,7 +73,6 @@ export default function ChatPage() {
 
   const handleSelectChat = async (chat) => {
     if (!chat) return;
-    setReplyingToMessage(null);
     selectChat(chat);
     navigate(`/chat/${chat.id}`);
   };
@@ -89,15 +85,6 @@ export default function ChatPage() {
   };
 
   const handleReply = (message) => {
-    setReplyingToMessage(message);
-  };
-
-  const handleClearReply = () => {
-    setReplyingToMessage(null);
-  };
-
-  const handleReact = async (message, emoji) => {
-    await reactToMessage(message.id, emoji);
   };
 
   const handleEdit = async (message) => {
@@ -113,11 +100,7 @@ export default function ChatPage() {
   };
 
   const handleSendMessage = async (payload) => {
-    const response = await sendMessage({ ...payload, replyToId: replyingToMessage?.id || payload.replyToId });
-    if (replyingToMessage) {
-      setReplyingToMessage(null);
-    }
-    return response;
+    return sendMessage(payload);
   };
 
   useEffect(() => {
@@ -125,7 +108,6 @@ export default function ChatPage() {
 
     const matchingChat = chats.find((chat) => Number(chat.id) === chatIdParam);
     if (matchingChat && Number(selectedChat?.id) !== chatIdParam) {
-      setReplyingToMessage(null);
       selectChat(matchingChat);
     }
   }, [chatIdParam, chats, selectedChat?.id]);
@@ -159,7 +141,7 @@ export default function ChatPage() {
               <div ref={scrollRef} className="chat-background flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-2 wa-scroll">
                 {activeChat ? (
                   <div className="flex flex-1 flex-col gap-1">
-                    {loadingMessages ? <LoadingScreen label="Loading messages" /> : <MessageList messages={messages} currentUserId={user?.id} onReply={handleReply} onReact={handleReact} onEdit={handleEdit} onDelete={handleDelete} />}
+                    {loadingMessages ? <LoadingScreen label="Loading messages" /> : <MessageList messages={messages} currentUserId={user?.id} />}
                   </div>
                 ) : (
                   <EmptyState
@@ -175,8 +157,6 @@ export default function ChatPage() {
                   onSend={handleSendMessage}
                   onTyping={startTyping}
                   onStopTyping={stopTyping}
-                  replyToMessage={replyingToMessage}
-                  onClearReply={handleClearReply}
                 />
               </div>
             </div>
@@ -204,7 +184,7 @@ export default function ChatPage() {
           <div className="relative mx-0 mt-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[24px] border border-white/5 bg-[rgba(14,14,14,0.4)] shadow-none backdrop-blur-sm">
             <div ref={scrollRef} className="chat-background flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-2 wa-scroll">
               <div className="flex flex-1 flex-col gap-1">
-                {loadingMessages ? <LoadingScreen label="Loading messages" /> : <MessageList messages={messages} currentUserId={user?.id} onReply={handleReply} onReact={handleReact} onEdit={handleEdit} onDelete={handleDelete} />}
+                {loadingMessages ? <LoadingScreen label="Loading messages" /> : <MessageList messages={messages} currentUserId={user?.id} />}
               </div>
             </div>
 
@@ -214,8 +194,6 @@ export default function ChatPage() {
                 onSend={handleSendMessage}
                 onTyping={startTyping}
                 onStopTyping={stopTyping}
-                replyToMessage={replyingToMessage}
-                onClearReply={handleClearReply}
               />
             </div>
           </div>

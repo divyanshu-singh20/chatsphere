@@ -3,7 +3,7 @@ import EmojiPicker from 'emoji-picker-react';
 import { FiPaperclip, FiSmile, FiMic, FiSend } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function MessageComposer({ onSend, onTyping, onStopTyping, disabled, replyToMessage, onClearReply }) {
+export default function MessageComposer({ onSend, onTyping, onStopTyping, disabled }) {
   const [text, setText] = useState('');
   const [files, setFiles] = useState([]);
   const [showEmoji, setShowEmoji] = useState(false);
@@ -203,19 +203,6 @@ export default function MessageComposer({ onSend, onTyping, onStopTyping, disabl
   return (
     <div className="w-full pb-[env(safe-area-inset-bottom)]">
       <AnimatePresence>
-        {replyToMessage ? (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className="mb-2 rounded-[22px] border border-[var(--wa-primary)]/20 bg-[rgba(20,20,20,0.96)] px-4 py-3 text-sm text-[var(--wa-text)] shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--wa-text-secondary)]">Replying to {replyToMessage.sender?.fullName || replyToMessage.sender?.username || 'message'}</p>
-                <p className="mt-1 truncate text-[13px]">{replyToMessage.content || 'Attachment'}</p>
-              </div>
-              <button type="button" onClick={onClearReply} className="text-[12px] font-[var(--fw-semibold)] text-[var(--wa-primary)]">
-                Cancel
-              </button>
-            </div>
-          </motion.div>
-        ) : null}
         {showEmoji ? (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }} className="absolute bottom-20 right-4 z-20 md:right-6">
             <EmojiPicker onEmojiClick={(emoji) => setText((current) => current + emoji.emoji)} />
