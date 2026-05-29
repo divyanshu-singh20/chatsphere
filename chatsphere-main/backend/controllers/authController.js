@@ -80,6 +80,8 @@ export const register = asyncHandler(async (req, res) => {
       }
     }
 
+    const defaultUserStatus = String(process.env.AUTO_APPROVE_REGISTRATION || '').toLowerCase() === 'true' ? 'approved' : 'pending';
+
     const user = await User.create({
       fullName,
       username,
@@ -89,7 +91,7 @@ export const register = asyncHandler(async (req, res) => {
       bio,
       avatar: avatarUrl || null,
       role: 'user',
-      status: 'pending'
+      status: defaultUserStatus
     });
 
     const io = getIO();
