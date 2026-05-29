@@ -64,14 +64,20 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error?.response?.status;
+    const requestUrl = error?.config?.url || error?.request?.responseURL || null;
 
     /**
      * logout on 401
      */
     if (status === 401) {
+      console.warn('[api][response] clearing auth after 401', { requestUrl });
       localStorage.removeItem('chatsphere_token');
       localStorage.removeItem('chatsphere_user');
       localStorage.removeItem('token');
+    }
+
+    if (status && status >= 400) {
+      console.warn('[api][response] error', { status, requestUrl });
     }
 
     /**

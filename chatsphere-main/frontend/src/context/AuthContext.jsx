@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import { disconnectSocket, getSocket } from '../services/socket';
@@ -22,9 +22,29 @@ export function AuthProvider({ children }) {
 
   const [loading, setLoading] = useState(true);
   const [authBusy, setAuthBusy] = useState(false);
+  const userIdRef = useRef(null);
+
+  useEffect(() => {
+    userIdRef.current = user?.id ? Number(user.id) : null;
+  }, [user?.id]);
 
   const handleAccountStatusChange = (payload) => {
+    const payloadUserId = Number(payload?.userId || payload?.user?.id);
+    const currentUserId = userIdRef.current;
+
+    console.debug('[auth][status-change]', {
+      currentUserId,
+      payloadUserId,
+      status: payload?.status || null,
+      message: payload?.message || null
+    });
+
     if (!payload || payload.status === 'approved') return;
+
+    if (!currentUserId || !payloadUserId || payloadUserId !== currentUserId) {
+      console.debug('[auth][status-change] ignored for non-current user');
+      return;
+    }
 
     toast.error(payload.message || 'Your account status changed');
     logout(false);
@@ -150,6 +170,13 @@ export function AuthProvider({ children }) {
    * =========================
    */
   const logout = (showToast = true) => {
+    console.debug('[auth][logout]', {
+      showToast,
+      currentUserId: userIdRef.current,
+      hasToken: !!token,
+      hasUser: !!user
+    });
+
     setToken(null);
     setUser(null);
 
