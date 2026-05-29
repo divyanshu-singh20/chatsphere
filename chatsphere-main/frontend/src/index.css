@@ -213,37 +213,28 @@ body::before {
   }
 }
 
-/* WhatsApp-like bubbles */
-.bubble-sent {
-  background: linear-gradient(180deg, rgba(37, 211, 102, 0.16), rgba(18, 140, 126, 0.1));
-  color: var(--wa-text);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
-}
-
-.bubble-received {
-  background: rgba(32, 44, 51, 0.95);
-  color: var(--wa-text);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-}
-
 .message-bubble {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  backdrop-filter: blur(10px);
 }
 
 .message-bubble--mine {
-  background: linear-gradient(180deg, rgba(10, 132, 255, 0.92), rgba(48, 209, 88, 0.82));
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #dcf8c6;
+  color: #111827;
+  border: 1px solid rgba(0, 0, 0, 0.03);
 }
 
 .message-bubble--other {
-  background: rgba(25, 29, 31, 0.96);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.dark .message-bubble--other {
+  background: #27272a;
+  color: #fafafa;
+  border-color: rgba(255, 255, 255, 0.05);
 }
 
 .chat-composer {
@@ -339,13 +330,13 @@ body::before {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin: var(--space-lg) auto;
+  margin: 4px auto;
   padding: 6px 12px;
   border-radius: var(--radius-full);
-  background: rgba(32, 44, 51, 0.9);
+  background: rgba(32, 44, 51, 0.88);
   color: var(--wa-text-secondary);
-  font-size: 12px;
-  letter-spacing: 0.02em;
+  font-size: 11px;
+  letter-spacing: 0.04em;
 }
 
 @keyframes messageIn {
@@ -661,25 +652,6 @@ body::before {
   flex-direction: column;
   gap: 4px;
   margin-bottom: 12px;
-}
-
-.message-separator {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 12px 0;
-  color: var(--wa-muted);
-  font-size: 12px;
-  font-weight: 500;
-  text-transform: uppercase;
-}
-
-.message-separator::before,
-.message-separator::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: rgba(0, 0, 0, 0.1);
 }
 
 .unread-badge {

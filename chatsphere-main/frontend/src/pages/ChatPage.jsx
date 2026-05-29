@@ -155,10 +155,10 @@ export default function ChatPage() {
             <ChatHeader chat={activeChat} onlineUsers={onlineUsers} currentUserId={user?.id} />
             {typingText ? <TypingIndicator names={typingMembers.map((m) => m.fullName || m.username)} /> : null}
 
-            <div className="relative mx-4 mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-white/5 bg-[rgba(15,15,15,0.55)] shadow-[0_24px_80px_rgba(0,0,0,0.22)] backdrop-blur-xl">
-              <div ref={scrollRef} className="chat-background flex min-h-0 flex-1 flex-col overflow-y-auto p-4 wa-scroll">
+            <div className="relative mx-4 mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border border-white/5 bg-[rgba(15,15,15,0.4)] shadow-none backdrop-blur-sm">
+              <div ref={scrollRef} className="chat-background flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-2 wa-scroll">
                 {activeChat ? (
-                  <div className="flex flex-1 flex-col gap-2">
+                  <div className="flex flex-1 flex-col gap-1">
                     {loadingMessages ? <LoadingScreen label="Loading messages" /> : <MessageList messages={messages} currentUserId={user?.id} onReply={handleReply} onReact={handleReact} onEdit={handleEdit} onDelete={handleDelete} />}
                   </div>
                 ) : (
@@ -201,9 +201,9 @@ export default function ChatPage() {
           <ChatHeader chat={activeChat} onlineUsers={onlineUsers} currentUserId={user?.id} onBack={handleMobileBack} />
           {typingText ? <TypingIndicator names={typingMembers.map((m) => m.fullName || m.username)} /> : null}
 
-          <div className="relative mx-0 mt-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[28px] border border-white/5 bg-[rgba(14,14,14,0.58)] shadow-[0_24px_80px_rgba(0,0,0,0.2)] backdrop-blur-xl">
-            <div ref={scrollRef} className="chat-background flex min-h-0 flex-1 flex-col overflow-y-auto p-3 pb-4 wa-scroll">
-              <div className="flex flex-1 flex-col gap-1.5">
+          <div className="relative mx-0 mt-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[24px] border border-white/5 bg-[rgba(14,14,14,0.4)] shadow-none backdrop-blur-sm">
+            <div ref={scrollRef} className="chat-background flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-2 wa-scroll">
+              <div className="flex flex-1 flex-col gap-1">
                 {loadingMessages ? <LoadingScreen label="Loading messages" /> : <MessageList messages={messages} currentUserId={user?.id} onReply={handleReply} onReact={handleReact} onEdit={handleEdit} onDelete={handleDelete} />}
               </div>
             </div>
