@@ -86,11 +86,20 @@ const notifyStatusChange = async (user, status, messageOverride) => {
 export const adminLogin = asyncHandler(async (req, res) => {
   const { identifier, password } = req.body;
 
+  console.log('[admin][login] incoming', {
+    identifier,
+    passwordProvided: !!password,
+    nodeEnv: process.env.NODE_ENV || 'development'
+  });
+
   if (!identifier || !password) {
+    console.log('[admin][login] rejected: missing credentials');
     return res.status(400).json({ success: false, message: 'Missing credentials' });
   }
 
   const normalizedIdentifier = normalizeIdentifier(identifier);
+  console.log('[admin][login] normalized identifier', normalizedIdentifier);
+
   const user = await User.findOne({
     where: {
       role: 'admin',
@@ -102,21 +111,37 @@ export const adminLogin = asyncHandler(async (req, res) => {
     }
   });
 
+  console.log('[admin][login] db lookup result', user ? {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    role: user.role,
+    status: user.status,
+    hasPassword: !!user.password
+  } : null);
+
   if (!user) {
+    console.log('[admin][login] rejected: admin not found');
     return res.status(401).json({ success: false, message: adminLoginFailure });
   }
 
   const match = await bcrypt.compare(password, user.password);
+  console.log('[admin][login] password compare result', { userId: user.id, match });
   if (!match) {
+    console.log('[admin][login] rejected: password mismatch');
     return res.status(401).json({ success: false, message: adminLoginFailure });
   }
 
   if (user.status !== 'approved') {
+    console.log('[admin][login] rejected: inactive admin', { userId: user.id, status: user.status });
     return res.status(403).json({ success: false, message: 'Admin account is not active' });
   }
 
   const token = signToken({ id: user.id, role: user.role });
+  console.log('[admin][login] token generation status', { userId: user.id, tokenGenerated: !!token });
   setAuthCookie(res, token);
+
+  console.log('[admin][login] success', { userId: user.id, role: user.role });
 
   return res.json({ token, user: toSafeUser(user) });
 });
