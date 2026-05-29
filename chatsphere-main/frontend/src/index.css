@@ -137,10 +137,10 @@ body::before {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at top left, rgba(10, 132, 255, 0.14), transparent 30%),
-    radial-gradient(circle at bottom right, rgba(48, 209, 88, 0.08), transparent 28%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%);
-  opacity: 0.9;
+    radial-gradient(circle at top left, rgba(37, 211, 102, 0.08), transparent 26%),
+    radial-gradient(circle at bottom right, rgba(10, 132, 255, 0.04), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.012), transparent 20%);
+  opacity: 0.7;
   z-index: -1;
 }
 
@@ -179,8 +179,8 @@ body::before {
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.02), transparent 32%),
-    radial-gradient(circle at top, rgba(10, 132, 255, 0.08), transparent 35%);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.016), transparent 35%),
+    radial-gradient(circle at top, rgba(37, 211, 102, 0.06), transparent 36%);
   z-index: 0;
 }
 
@@ -190,10 +190,12 @@ body::before {
 }
 
 .chat-background {
-  background:
-    linear-gradient(rgba(12, 12, 12, 0.88), rgba(12, 12, 12, 0.88)),
-    radial-gradient(circle at top left, rgba(10, 132, 255, 0.06), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.04), transparent 26%);
+  background-color: #0b141a;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(11, 20, 26, 0.92), rgba(11, 20, 26, 0.96));
+  background-size: 18px 18px, auto;
+  background-position: 0 0, center;
 }
 
 .safe-area-bottom {
@@ -213,43 +215,77 @@ body::before {
 
 /* WhatsApp-like bubbles */
 .bubble-sent {
-  background: linear-gradient(180deg, rgba(10, 132, 255, 0.24), rgba(10, 132, 255, 0.16));
+  background: linear-gradient(180deg, rgba(37, 211, 102, 0.16), rgba(18, 140, 126, 0.1));
   color: var(--wa-text);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
 }
 
 .bubble-received {
-  background: var(--wa-received);
+  background: rgba(32, 44, 51, 0.95);
   color: var(--wa-text);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
-  border: 1px solid var(--wa-border);
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .message-bubble {
   position: relative;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+  overflow: visible;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.16);
+}
+
+.message-bubble > * {
+  position: relative;
+  z-index: 1;
 }
 
 .message-bubble--mine {
-  border-top-right-radius: 12px;
+  background: linear-gradient(180deg, rgba(37, 211, 102, 0.92), rgba(37, 211, 102, 0.86));
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 6px;
 }
 
 .message-bubble--other {
-  border-top-left-radius: 12px;
+  background: rgba(32, 44, 51, 0.96);
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 6px;
+}
+
+.message-bubble--mine::after,
+.message-bubble--other::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  width: 10px;
+  height: 14px;
+  opacity: 0.72;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.message-bubble--mine::after {
+  right: -4px;
+  background: rgba(0, 92, 75, 0.96);
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+.message-bubble--other::after {
+  left: -4px;
+  background: rgba(32, 44, 51, 0.96);
+  clip-path: polygon(100% 0, 0 50%, 100% 100%);
 }
 
 .chat-composer {
   position: sticky;
   bottom: 0;
   z-index: 30;
-  min-height: 60px;
+  min-height: 72px;
   display: flex;
   align-items: flex-end;
-  gap: 8px;
-  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, rgba(18, 18, 18, 0.92), rgba(12, 12, 12, 0.96));
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  transition: all var(--transition-standard);
+  gap: 10px;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  background: rgba(17, 27, 33, 0.96);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18);
   will-change: transform;
 }
 
@@ -257,19 +293,19 @@ body::before {
   flex: 1;
   min-height: 44px;
   border-radius: 9999px;
-  padding: 10px 14px;
-  border: 1px solid var(--wa-border);
-  background: rgba(17, 17, 17, 0.98);
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(32, 44, 51, 0.96);
   color: var(--wa-text);
-  font-size: 14px;
+  font-size: 15px;
   font-family: inherit;
   resize: none;
   outline: none;
 }
 
 .composer-input:focus {
-  border-color: var(--wa-primary);
-  background: #151515;
+  border-color: rgba(37, 211, 102, 0.35);
+  background: rgba(34, 46, 54, 0.98);
 }
 
 .composer-input::placeholder {
@@ -283,7 +319,7 @@ body::before {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--wa-primary);
+  background: var(--wa-green);
   color: #fff;
   border: none;
   cursor: pointer;
@@ -292,7 +328,7 @@ body::before {
 }
 
 .composer-send:hover:not(:disabled) {
-  background: #0b93ff;
+  background: var(--wa-green-hover);
   transform: scale(1.03);
 }
 
@@ -334,7 +370,7 @@ body::before {
   margin: var(--space-lg) auto;
   padding: 6px 12px;
   border-radius: var(--radius-full);
-  background: rgba(28, 28, 30, 0.9);
+  background: rgba(32, 44, 51, 0.9);
   color: var(--wa-text-secondary);
   font-size: 12px;
   letter-spacing: 0.02em;

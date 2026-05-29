@@ -48,7 +48,7 @@ function MessageList({ messages, currentUserId, onReply, onReact, onEdit, onDele
   const messageGroups = useMemo(() => groupMessagesByDate(uniqueMessages), [uniqueMessages]);
 
   if (!uniqueMessages.length) {
-    return <EmptyState title="No messages yet" description="Start the conversation with a text, image, or voice note." />;
+    return <EmptyState variant="conversation" title="No messages yet" description="Send a text, photo, or voice note to start the chat." />;
   }
 
   return (

@@ -19,7 +19,7 @@ export default function ChatHeader({ chat, onlineUsers = [], currentUserId, onBa
 
   if (!chat) {
     return (
-      <div className="flex h-[60px] items-center justify-between border-b border-[var(--wa-border-strong)] bg-[var(--wa-chat-bg)] px-[var(--space-lg)] py-[var(--space-md)]">
+      <div className="flex h-[60px] items-center justify-between border-b border-white/5 bg-[rgba(17,27,33,0.98)] px-[var(--space-lg)] py-[var(--space-md)]">
         <div>
           <p className="text-[14px] font-[var(--fw-semibold)] text-[var(--wa-text)]">Select a chat</p>
           <p className="text-[12px] text-[var(--wa-text-secondary)]">Your conversations appear here.</p>
@@ -37,9 +37,9 @@ export default function ChatHeader({ chat, onlineUsers = [], currentUserId, onBa
   const presenceLabel = getPresenceLabel({ isOnline, lastSeenAt: peer?.lastSeenAt || chat.lastSeenAt });
 
   return (
-    <div className="flex h-[60px] items-center justify-between border-b border-[var(--wa-border-strong)] bg-[var(--wa-chat-bg)] px-[var(--space-lg)] py-[var(--space-md)] transition-all md:h-[60px] lg:h-[60px]">
+    <div className="flex h-[60px] items-center justify-between border-b border-white/5 bg-[rgba(17,27,33,0.98)] px-[var(--space-lg)] py-[var(--space-md)] transition-all md:h-[60px] lg:h-[60px]">
       <div className="flex items-center gap-[var(--space-md)] min-w-0">
-        <button onClick={() => (typeof onBack === 'function' ? onBack() : window.history.back())} className="lg:hidden md:hidden inline-flex h-11 w-11 items-center justify-center rounded-[9999px] bg-[var(--wa-card-hover)] text-[var(--wa-primary)] transition-all active:scale-95 hover:bg-[var(--wa-card-hover)] hover:shadow-[0_0_0_1px_rgba(10,132,255,0.18),0_0_16px_rgba(10,132,255,0.12)]" aria-label="Back to chats">
+        <button onClick={() => (typeof onBack === 'function' ? onBack() : window.history.back())} className="lg:hidden md:hidden inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/5 bg-white/5 text-[var(--wa-green)] transition-all active:scale-95 hover:bg-white/10" aria-label="Back to chats">
           ←
         </button>
         <Avatar src={chat.avatar} name={chat.name} online={isOnline} size="header" />
@@ -49,13 +49,13 @@ export default function ChatHeader({ chat, onlineUsers = [], currentUserId, onBa
         </div>
       </div>
       <div className="flex flex-shrink-0 items-center gap-2 text-[var(--wa-text-secondary)]">
-        <button className="inline-flex h-11 w-11 items-center justify-center rounded-[9999px] text-[18px] text-[var(--wa-primary)] transition-all active:scale-95 hover:bg-[var(--wa-card-hover)] hover:shadow-[0_0_0_1px_rgba(10,132,255,0.18),0_0_16px_rgba(10,132,255,0.14)]" title="Search in chat" aria-label="Search in chat">
+        <button className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/5 bg-white/5 text-[18px] text-[var(--wa-green)] transition-all active:scale-95 hover:bg-white/10" title="Search in chat" aria-label="Search in chat">
           <FiSearch />
         </button>
         <button
           disabled={callDisabled}
           onClick={() => startCall({ chat, type: 'voice' })}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-[9999px] text-[18px] text-[var(--wa-primary)] transition-all active:scale-95 hover:bg-[var(--wa-card-hover)] hover:shadow-[0_0_0_1px_rgba(10,132,255,0.18),0_0_16px_rgba(10,132,255,0.14)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/5 bg-white/5 text-[18px] text-[var(--wa-green)] transition-all active:scale-95 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
           title="Voice call"
           aria-label="Start voice call"
         >
@@ -64,7 +64,7 @@ export default function ChatHeader({ chat, onlineUsers = [], currentUserId, onBa
         <button
           disabled={callDisabled}
           onClick={() => startCall({ chat, type: 'video' })}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-[9999px] text-[18px] text-[var(--wa-primary)] transition-all active:scale-95 hover:bg-[var(--wa-card-hover)] hover:shadow-[0_0_0_1px_rgba(10,132,255,0.18),0_0_16px_rgba(10,132,255,0.14)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/5 bg-white/5 text-[18px] text-[var(--wa-green)] transition-all active:scale-95 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
           title="Video call"
           aria-label="Start video call"
         >
@@ -73,7 +73,7 @@ export default function ChatHeader({ chat, onlineUsers = [], currentUserId, onBa
         <div className="lg:hidden">
           <MobileAccountMenu user={user} logout={logout} />
         </div>
-        <button className="hidden h-11 w-11 items-center justify-center rounded-[9999px] text-[18px] text-[var(--wa-primary)] transition-all active:scale-95 hover:bg-[var(--wa-card-hover)] hover:shadow-[0_0_0_1px_rgba(10,132,255,0.18),0_0_16px_rgba(10,132,255,0.14)] lg:inline-flex" title="More options" aria-label="More options">
+        <button className="hidden h-11 w-11 items-center justify-center rounded-full border border-white/5 bg-white/5 text-[18px] text-[var(--wa-green)] transition-all active:scale-95 hover:bg-white/10 lg:inline-flex" title="More options" aria-label="More options">
           <FiMoreVertical />
         </button>
       </div>

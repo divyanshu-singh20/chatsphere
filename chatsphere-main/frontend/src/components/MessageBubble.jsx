@@ -11,15 +11,6 @@ const defaultReactions = ['👍', '❤️', '😂', '😮'];
 const MessageBubbleComponent = ({ message, mine, onReply, onReact, onEdit, onDelete }) => {
   const isAudioMessage = message.mediaType === 'audio';
   const reactions = Array.isArray(message.reactions) ? message.reactions : [];
-  const statusText = message.deletedForEveryone
-    ? 'Deleted'
-    : message.status === 'seen' || message.seenAt
-      ? 'Seen'
-      : message.status === 'delivered' || message.deliveredAt
-        ? 'Delivered'
-        : message.status === 'sent'
-          ? 'Sent'
-          : '';
 
   return (
     <div className={`group flex min-w-0 w-full items-end gap-2 ${mine ? 'justify-end' : 'justify-start'} transition-all`}>
@@ -31,10 +22,10 @@ const MessageBubbleComponent = ({ message, mine, onReply, onReact, onEdit, onDel
 
       <div className={`flex min-w-0 flex-col ${mine ? 'items-end' : 'items-start'} gap-1`}>
         <div
-          className={`message-bubble inline-flex min-w-0 max-w-[75vw] flex-col gap-2 overflow-hidden px-4 py-3 text-left shadow-sm transition-transform duration-200 hover:-translate-y-0.5 md:max-w-[70%] lg:max-w-[65%] ${mine ? 'message-bubble--mine rounded-[22px] rounded-br-[8px]' : 'message-bubble--other rounded-[22px] rounded-bl-[8px]'}`}
+          className={`message-bubble inline-flex min-w-0 max-w-[75vw] flex-col gap-2 px-4 py-3 text-left transition-transform duration-200 hover:-translate-y-0.5 md:max-w-[70%] lg:max-w-[65%] ${mine ? 'message-bubble--mine' : 'message-bubble--other'}`}
         >
           {message.replyTo ? (
-            <div className="rounded-2xl border-l-2 border-white/15 bg-black/10 px-3 py-2">
+            <div className="rounded-[14px] border-l-2 border-white/15 bg-black/10 px-3 py-2">
               <p className="text-[10px] font-[var(--fw-semibold)] uppercase tracking-[0.22em] text-white/60">Replying to</p>
               <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-white/80">{message.replyTo.content}</p>
             </div>
@@ -105,10 +96,9 @@ const MessageBubbleComponent = ({ message, mine, onReply, onReact, onEdit, onDel
             ) : null}
           </div>
 
-          <div className="flex items-center justify-end gap-1 whitespace-nowrap text-[10px] leading-none text-white/55">
+          <div className={`flex items-center justify-end gap-1 whitespace-nowrap text-[10px] leading-none ${mine ? 'text-white/75' : 'text-white/55'}`}>
             <span>{formatTime(message.createdAt || Date.now())}</span>
-            {mine ? <span className="font-semibold text-white/70">{message.seenAt ? '✓✓' : message.deliveredAt ? '✓✓' : '✓'}</span> : null}
-            {statusText ? <span className="uppercase tracking-[0.18em]">{statusText}</span> : null}
+            {mine ? <span className="font-semibold text-white/80">{message.seenAt ? '✓✓' : message.deliveredAt ? '✓✓' : '✓'}</span> : null}
           </div>
         </div>
       </div>
