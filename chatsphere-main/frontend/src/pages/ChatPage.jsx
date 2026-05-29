@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
 import { useChat } from '../hooks/useChat';
 import { useAuth } from '../context/AuthContext';
 import ChatSidebar from '../components/ChatSidebar';
@@ -11,7 +10,6 @@ import LoadingScreen from '../components/LoadingScreen';
 import EmptyState from '../components/EmptyState';
 import TypingIndicator from '../components/TypingIndicator';
 import HomePage from './HomePage';
-import api from '../services/api';
 
 export default function ChatPage() {
   const { user, logout } = useAuth();
@@ -37,9 +35,7 @@ export default function ChatPage() {
     startDirectChat,
     loadingUsers,
     replyingToMessage,
-    setReplyingToMessage,
-    refreshChats,
-    setChats
+    setReplyingToMessage
   } = useChat();
   const scrollRef = useRef(null);
   const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.matchMedia('(max-width: 1023px)').matches : false));
@@ -124,27 +120,6 @@ export default function ChatPage() {
     return response;
   };
 
-  const handleBlockUser = async (chat) => {
-    const peer = (chat?.members || []).find((member) => Number(member.id) !== Number(user?.id));
-    if (!peer?.id) return;
-
-    const confirmed = window.confirm(`Block ${peer.fullName || peer.username}? You will no longer be able to chat with them.`);
-    if (!confirmed) return;
-
-    try {
-      await api.post(`/users/block/${peer.id}`);
-      toast.success('User blocked');
-      await refreshChats();
-      setChats((current) => current.filter((entry) => Number(entry.id) !== Number(chat.id)));
-      if (Number(activeChat?.id) === Number(chat.id)) {
-        selectChat(null);
-        navigate('/chats', { replace: true });
-      }
-    } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to block user');
-    }
-  };
-
   useEffect(() => {
     if (!chatIdParam) return;
 
@@ -177,7 +152,7 @@ export default function ChatPage() {
           </div>
 
           <div className="relative hidden h-[100dvh] min-h-0 flex-1 flex-col overflow-hidden lg:flex">
-            <ChatHeader chat={activeChat} onlineUsers={onlineUsers} currentUserId={user?.id} onBlockUser={handleBlockUser} />
+            <ChatHeader chat={activeChat} onlineUsers={onlineUsers} currentUserId={user?.id} />
             {typingText ? <TypingIndicator names={typingMembers.map((m) => m.fullName || m.username)} /> : null}
 
             <div className="relative mx-4 mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-white/5 bg-[rgba(15,15,15,0.55)] shadow-[0_24px_80px_rgba(0,0,0,0.22)] backdrop-blur-xl">
@@ -223,7 +198,7 @@ export default function ChatPage() {
         />
       ) : (
         <div className="chat-shell relative flex h-[100dvh] w-full flex-col overflow-hidden bg-[var(--wa-bg)] text-[var(--wa-text)]">
-          <ChatHeader chat={activeChat} onlineUsers={onlineUsers} currentUserId={user?.id} onBack={handleMobileBack} onBlockUser={handleBlockUser} />
+          <ChatHeader chat={activeChat} onlineUsers={onlineUsers} currentUserId={user?.id} onBack={handleMobileBack} />
           {typingText ? <TypingIndicator names={typingMembers.map((m) => m.fullName || m.username)} /> : null}
 
           <div className="relative mx-0 mt-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[28px] border border-white/5 bg-[rgba(14,14,14,0.58)] shadow-[0_24px_80px_rgba(0,0,0,0.2)] backdrop-blur-xl">

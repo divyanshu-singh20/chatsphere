@@ -281,10 +281,6 @@ export function ChatProvider({ children }) {
     }
   }, [uniqueUsersById]);
 
-  const refreshChats = useCallback(async () => {
-    await loadChats();
-  }, [loadChats]);
-
   const handleIncomingMessage = async (message, options = {}) => {
     // If server message already handled by id, skip
     if (!message) return;
@@ -781,10 +777,9 @@ export function ChatProvider({ children }) {
       startTyping,
       stopTyping,
       setNotifications,
-      setChats,
-      refreshChats
+      setChats
     }),
-    [chats, messages, selectedChat, onlineUsers, typingUserIds, notifications, loadingChats, loadingMessages, users, loadingUsers, replyingToMessage, editMessage, deleteMessage, reactToMessage, refreshChats]
+    [chats, messages, selectedChat, onlineUsers, typingUserIds, notifications, loadingChats, loadingMessages, users, loadingUsers, replyingToMessage, editMessage, deleteMessage, reactToMessage]
   );
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

@@ -1,7 +1,7 @@
 import { Op } from 'sequelize';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { Chat, Message, User } from '../models/index.js';
-import { ensureDirectChat, isBlockedBetween } from '../services/chatService.js';
+import { ensureDirectChat } from '../services/chatService.js';
 
 const serializeChat = (chat, currentUserId) => {
   const members = (chat.members || []).filter((member) => Number(member.id) === Number(currentUserId) || member.status === 'approved');
@@ -56,22 +56,8 @@ export const getChats = asyncHandler(async (req, res) => {
     }
   });
 
-  const filteredChats = await Promise.all(
-    visible.map(async (chat) => {
-      const plainChat = chat.toJSON();
-      const members = plainChat.members || [];
-      const counterpart = members.find((member) => Number(member.id) !== Number(req.user.id)) || null;
-
-      if (!plainChat.isGroup && counterpart && await isBlockedBetween(req.user.id, counterpart.id)) {
-        return null;
-      }
-
-      return serializeChat({ ...plainChat, messages: [latestByChatId.get(Number(chat.id))].filter(Boolean) }, req.user.id);
-    })
-  );
-
   res.json({
-    chats: filteredChats.filter(Boolean)
+    chats: visible.map((chat) => serializeChat({ ...chat.toJSON(), messages: [latestByChatId.get(Number(chat.id))].filter(Boolean) }, req.user.id)).filter(Boolean)
   });
 });
 

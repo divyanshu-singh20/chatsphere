@@ -1,7 +1,6 @@
 import { Chat, Message, User } from '../models/index.js';
 import { uploadBuffer } from '../config/cloudinary.js';
 import { getIO } from '../socket/index.js';
-import { isBlockedBetween } from './chatService.js';
 
 const toSafeUser = (user) => (user ? {
   id: user.id,
@@ -75,15 +74,6 @@ export const persistMessage = async ({ chatId, senderId, content = '', replyToId
     const error = new Error('Not allowed');
     error.statusCode = 403;
     throw error;
-  }
-
-  if (!chat.isGroup) {
-    const counterpart = (chat.members || []).find((member) => Number(member.id) !== Number(senderId));
-    if (counterpart && await isBlockedBetween(senderId, counterpart.id)) {
-      const error = new Error('You cannot send messages to this user');
-      error.statusCode = 403;
-      throw error;
-    }
   }
 
   let mediaUrl = null;

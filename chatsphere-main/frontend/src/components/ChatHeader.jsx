@@ -1,4 +1,4 @@
-import { FiMoreVertical, FiPhone, FiSearch, FiSlash, FiVideo } from 'react-icons/fi';
+import { FiMoreVertical, FiPhone, FiSearch, FiVideo } from 'react-icons/fi';
 import Avatar from './Avatar';
 import useCall from '../hooks/useCall';
 import { getPresenceLabel } from '../utils/lastSeen';
@@ -13,7 +13,7 @@ import MobileAccountMenu from './MobileAccountMenu';
  * - Dark mode: Automatically supported via CSS variables
  */
 
-export default function ChatHeader({ chat, onlineUsers = [], currentUserId, onBack, onBlockUser }) {
+export default function ChatHeader({ chat, onlineUsers = [], currentUserId, onBack }) {
   const { call, startCall } = useCall();
   const { user, logout } = useAuth();
 
@@ -70,18 +70,6 @@ export default function ChatHeader({ chat, onlineUsers = [], currentUserId, onBa
         >
           <FiVideo />
         </button>
-        {isDirectChat ? (
-          <button
-            type="button"
-            onClick={() => onBlockUser?.(chat)}
-            className="inline-flex h-11 items-center gap-2 rounded-full border border-rose-500/30 bg-rose-500/10 px-4 text-[13px] font-medium text-rose-200 transition-all active:scale-95 hover:bg-rose-500/15"
-            title="Block user"
-            aria-label="Block user"
-          >
-            <FiSlash />
-            Block
-          </button>
-        ) : null}
         <div className="lg:hidden">
           <MobileAccountMenu user={user} logout={logout} />
         </div>

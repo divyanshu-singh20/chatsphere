@@ -7,16 +7,6 @@ const ADMIN_PASSWORD = 'Admin@123';
 const ADMIN_FULL_NAME = 'ChatSphere Admin';
 const ADMIN_USERNAME = 'admin';
 const ADMIN_PHONE = '+10000000000';
-const LEGACY_ADMIN_EMAIL = 'admin@gmail.com';
-const LEGACY_ADMIN_PASSWORD = 'admin123';
-const LEGACY_ADMIN_FULL_NAME = 'ChatSphere Admin';
-const LEGACY_ADMIN_USERNAME = 'admin-gmail';
-const LEGACY_ADMIN_PHONE = '+10000000001';
-const TEST_USER_EMAIL = 'test.user@chatsphere.app';
-const TEST_USER_PASSWORD = 'Test@12345';
-const TEST_USER_FULL_NAME = 'ChatSphere Test User';
-const TEST_USER_USERNAME = 'test.user';
-const TEST_USER_PHONE = '+10000000002';
 const ACCOUNT_STATUSES = ['pending', 'approved', 'rejected', 'blocked'];
 
 const getTableName = () => {
@@ -164,54 +154,6 @@ export const ensureDefaultAdmin = async () => {
     password,
     role: 'admin',
     status: 'approved'
-  });
-
-  const legacyPassword = await bcrypt.hash(LEGACY_ADMIN_PASSWORD, 12);
-  const [legacyAdmin] = await User.findOrCreate({
-    where: { email: LEGACY_ADMIN_EMAIL },
-    defaults: {
-      fullName: LEGACY_ADMIN_FULL_NAME,
-      username: LEGACY_ADMIN_USERNAME,
-      email: LEGACY_ADMIN_EMAIL,
-      phoneNumber: LEGACY_ADMIN_PHONE,
-      password: legacyPassword,
-      role: 'admin',
-      status: 'approved'
-    }
-  });
-
-  await legacyAdmin.update({
-    fullName: LEGACY_ADMIN_FULL_NAME,
-    username: LEGACY_ADMIN_USERNAME,
-    phoneNumber: LEGACY_ADMIN_PHONE,
-    password: legacyPassword,
-    role: 'admin',
-    status: 'approved'
-  });
-
-  const testPassword = await bcrypt.hash(TEST_USER_PASSWORD, 12);
-  const [testUser] = await User.findOrCreate({
-    where: { email: TEST_USER_EMAIL },
-    defaults: {
-      fullName: TEST_USER_FULL_NAME,
-      username: TEST_USER_USERNAME,
-      email: TEST_USER_EMAIL,
-      phoneNumber: TEST_USER_PHONE,
-      password: testPassword,
-      role: 'user',
-      status: 'approved',
-      bio: 'Auto-created test user'
-    }
-  });
-
-  await testUser.update({
-    fullName: TEST_USER_FULL_NAME,
-    username: TEST_USER_USERNAME,
-    phoneNumber: TEST_USER_PHONE,
-    password: testPassword,
-    role: 'user',
-    status: 'approved',
-    bio: 'Auto-created test user'
   });
 
   return admin;
