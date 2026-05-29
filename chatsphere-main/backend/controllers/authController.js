@@ -132,10 +132,13 @@ export const login = asyncHandler(async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
+    // If an admin account hits the regular user login endpoint, treat it
+    // as invalid credentials so clients do not mis-handle the response.
     if (user.role === 'admin') {
-      return res.status(403).json({ success: false, message: 'Use admin login' });
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
+    // Reject non-approved users with 403 (forbidden) and a clear message.
     if (user.status !== 'approved') {
       return res.status(403).json({ success: false, message: getLoginRejectionMessage(user) });
     }
