@@ -1,5 +1,5 @@
 import { Op } from 'sequelize';
-import { Chat, Group, Message, User } from '../models/index.js';
+import { BlockedUser, Chat, Group, Message, User } from '../models/index.js';
 
 export const buildChatPreview = async (chat, currentUserId) => {
   const memberIds = (chat.members || []).map((member) => member.id);
@@ -18,6 +18,9 @@ export const buildChatPreview = async (chat, currentUserId) => {
 };
 
 export const getDirectChatWhere = async (userId, otherUserId) => {
+  const blocked = await isBlockedBetween(userId, otherUserId);
+  if (blocked) return null;
+
   const chats = await Chat.findAll({
     attributes: ['id', 'name', 'isGroup', 'createdById', 'avatar', 'lastMessageAt'],
     where: { isGroup: false },
@@ -37,10 +40,35 @@ export const getDirectChatWhere = async (userId, otherUserId) => {
   }) || null;
 };
 
+export const isBlockedBetween = async (userId, otherUserId) => {
+  const left = Number(userId);
+  const right = Number(otherUserId);
+
+  if (!left || !right) return false;
+
+  const count = await BlockedUser.count({
+    where: {
+      [Op.or]: [
+        { blockerId: left, blockedId: right },
+        { blockerId: right, blockedId: left }
+      ]
+    }
+  });
+
+  return count > 0;
+};
+
 export const ensureDirectChat = async (userId, otherUserId) => {
   if (!userId || !otherUserId) {
     throw new Error('Invalid user ids for direct chat');
   }
+
+  if (await isBlockedBetween(userId, otherUserId)) {
+    const error = new Error('User is blocked');
+    error.statusCode = 403;
+    throw error;
+  }
+
   const existing = await getDirectChatWhere(userId, otherUserId);
   if (existing) return existing;
 
