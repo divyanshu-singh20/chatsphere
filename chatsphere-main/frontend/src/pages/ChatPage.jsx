@@ -59,7 +59,7 @@ export default function ChatPage() {
 
   const typingMembers = useMemo(() => {
     if (!activeChat || !typingUserIds.length) return [];
-    return (activeChat.members || []).filter((member) => typingUserIds.includes(member.id) && member.id !== user?.id);
+    return (activeChat.members || []).filter((member) => typingUserIds.includes(Number(member.id)) && Number(member.id) !== Number(user?.id));
   }, [activeChat, typingUserIds, user?.id]);
 
   const typingText = useMemo(() => {

@@ -31,7 +31,7 @@ function MobileChatList({ chats = [], onlineUsers = [], currentUserId, onSelectC
       {uniqueChats.map((chat) => {
         const isOnline = (chat.members || [])
           .filter((member) => Number(member?.id) !== Number(currentUserId))
-          .some((member) => onlineUsers.includes(Number(member.id)));
+          .some((member) => member?.isOnline || onlineUsers.includes(Number(member.id)));
         const unreadCount = Number(chat.unreadCount || 0);
         const lastMessage = chat.lastMessage?.content || chat.lastMessage?.text || 'Start a conversation';
         const timeLabel = formatTime(chat.lastMessage?.createdAt || chat.updatedAt || chat.lastMessageAt);

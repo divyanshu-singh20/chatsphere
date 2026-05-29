@@ -43,7 +43,8 @@ const getChatIdentityKey = (chat) => {
 };
 
 export function ChatProvider({ children }) {
-  const { user } = useAuth();
+  const auth = useAuth();
+  const user = auth?.user || null;
   const [chats, setChats] = useState([]);
   const [users, setUsers] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -355,13 +356,17 @@ export function ChatProvider({ children }) {
 
     const handleOnlineUsers = (payload) => setOnlineUsers(dedupeIds(payload || []));
     const handleTyping = ({ chatId, userId }) => {
-      if (selectedChatRef.current?.id === chatId && userId !== user.id) {
-        setTypingUserIds((current) => Array.from(new Set([...current, userId])));
+      const normalizedChatId = Number(chatId);
+      const normalizedUserId = Number(userId);
+      if (Number(selectedChatRef.current?.id) === normalizedChatId && normalizedUserId !== Number(user.id)) {
+        setTypingUserIds((current) => Array.from(new Set([...current, normalizedUserId])));
       }
     };
     const handleStopTyping = ({ chatId, userId }) => {
-      if (selectedChatRef.current?.id === chatId) {
-        setTypingUserIds((current) => current.filter((id) => id !== userId));
+      const normalizedChatId = Number(chatId);
+      const normalizedUserId = Number(userId);
+      if (Number(selectedChatRef.current?.id) === normalizedChatId) {
+        setTypingUserIds((current) => current.filter((id) => Number(id) !== normalizedUserId));
       }
     };
     const handleReceiveMessage = (message) => handleIncomingMessage(message);

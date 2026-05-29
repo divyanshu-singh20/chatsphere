@@ -123,7 +123,16 @@ export const broadcastMessage = ({ chatId, senderId, receiverIds = [], payload }
 
   const normalizedChatId = Number(chatId);
 
+  console.log('[message][broadcast]', {
+    chatId: normalizedChatId,
+    senderId,
+    receiverIds,
+    messageId: payload.id,
+    type: payload.mediaType || 'text'
+  });
+
   io.to(`user:${senderId}`).emit('message:sent', payload);
+  console.debug('[message][emit]', { event: 'message:sent', to: `user:${senderId}`, messageId: payload.id });
 
   receiverIds.forEach((receiverId) => {
     const target = io.to(`user:${receiverId}`);
@@ -138,12 +147,14 @@ export const broadcastMessage = ({ chatId, senderId, receiverIds = [], payload }
       chatId: normalizedChatId,
       message: payload
     });
+    console.debug('[message][emit]', { event: 'message:receive', to: `user:${receiverId}`, messageId: payload.id });
   });
 
   io.to(`user:${senderId}`).emit('sidebar_update', {
     chatId: normalizedChatId,
     message: payload
   });
+  console.debug('[message][emit]', { event: 'sidebar_update', to: `user:${senderId}`, messageId: payload.id });
 };
 
 export const createAndBroadcastMessage = async (options) => {

@@ -240,8 +240,10 @@ export const initSocket = (server) => {
     }
 
     socket.join(`user:${userId}`);
+    console.debug('[socket] room joined', { userId, room: `user:${userId}` });
     if (socket.user.role === 'admin') {
       socket.join('admins');
+      console.debug('[socket] room joined', { userId, room: 'admins' });
     }
 
     User.update({ isOnline: true, lastSeenAt: null }, { where: { id: userId } }).catch(() => {});
@@ -249,6 +251,8 @@ export const initSocket = (server) => {
 
     io.emit('user:online', { userId, lastSeenAt: null });
     io.emit('online-users', SocketManager.getOnlineUserIds());
+    console.debug('[socket] broadcast', { event: 'user:online', userId });
+    console.debug('[socket] broadcast', { event: 'online-users', onlineUsers: SocketManager.getOnlineUserIds() });
 
     // Forward server-side admin status events to all connected clients.
     socket.on('user:approved', (payload) => {
@@ -562,6 +566,14 @@ export const initSocket = (server) => {
           return;
         }
 
+        console.log('[socket] message:send received', {
+          userId,
+          chatId,
+          hasContent: !!String(payload.content || '').trim(),
+          replyToId: payload.replyToId || null,
+          clientMsgId: payload.clientMsgId || null
+        });
+
         const result = await createAndBroadcastMessage({
           chatId,
           senderId: userId,
@@ -582,16 +594,21 @@ export const initSocket = (server) => {
     });
 
     socket.on('join-chat', ({ chatId }) => {
-      if (chatId) socket.join(`chat:${chatId}`);
+      if (chatId) {
+        socket.join(`chat:${chatId}`);
+        console.debug('[socket] room joined', { userId, room: `chat:${chatId}` });
+      }
     });
 
     socket.on('typing:start', ({ chatId }) => {
       if (!chatId) return;
+      console.debug('[socket] typing:start', { userId, chatId });
       socket.to(`chat:${chatId}`).emit('typing:start', { chatId, userId });
     });
 
     socket.on('typing:stop', ({ chatId }) => {
       if (!chatId) return;
+      console.debug('[socket] typing:stop', { userId, chatId });
       socket.to(`chat:${chatId}`).emit('typing:stop', { chatId, userId });
     });
 

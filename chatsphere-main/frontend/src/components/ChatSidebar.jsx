@@ -91,7 +91,7 @@ function ChatSidebar({ chats, users = [], selectedChat, onSelect, onlineUsers = 
         {uniqueUsers.map((u) => {
           const userId = getEntityId(u);
           const isActive = selectedChat?.members?.some((m) => getEntityId(m) === userId) && !selectedChat?.isGroup;
-          const isOnline = onlineUsers.includes(userId);
+          const isOnline = !!u.isOnline || onlineUsers.includes(Number(userId));
           const presenceLabel = getPresenceLabel({ isOnline, lastSeenAt: u.lastSeenAt });
           return (
             <button
@@ -120,7 +120,7 @@ function ChatSidebar({ chats, users = [], selectedChat, onSelect, onlineUsers = 
           const isActive = selectedChat?.id === chat.id;
           const isOnline = (chat.members || [])
             .filter((member) => getEntityId(member) !== Number(currentUserId))
-            .some((member) => onlineUsers.includes(getEntityId(member)));
+            .some((member) => member?.isOnline || onlineUsers.includes(Number(getEntityId(member))));
           const peer = (chat.members || []).find((member) => getEntityId(member) !== Number(currentUserId)) || chat;
           const presenceLabel = getPresenceLabel({ isOnline, lastSeenAt: peer?.lastSeenAt || chat.lastSeenAt });
           const unreadCount = Number(chat.unreadCount || 0);

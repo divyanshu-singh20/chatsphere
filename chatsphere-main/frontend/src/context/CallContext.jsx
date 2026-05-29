@@ -79,7 +79,8 @@ const vibrateSafely = (pattern) => {
 };
 
 export function CallProvider({ children }) {
-  const { user } = useAuth();
+  const auth = useAuth();
+  const user = auth?.user || null;
   const { selectedChat, chats, users } = useChat();
 
   const [call, setCall] = useState(initialCallState);

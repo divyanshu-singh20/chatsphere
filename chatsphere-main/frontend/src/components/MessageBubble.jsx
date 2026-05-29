@@ -11,21 +11,28 @@ const defaultReactions = ['👍', '❤️', '😂', '😮'];
 const MessageBubbleComponent = ({ message, mine, onReply, onReact, onEdit, onDelete }) => {
   const isAudioMessage = message.mediaType === 'audio';
   const reactions = Array.isArray(message.reactions) ? message.reactions : [];
+  const senderName = message.sender?.fullName || message.sender?.username || 'Unknown user';
 
   return (
     <div className={`group flex min-w-0 w-full items-end gap-2 ${mine ? 'justify-end' : 'justify-start'} transition-all`}>
       {!mine ? (
-        <div className="mt-auto opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+        <div className="mt-auto shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
           <Avatar src={message.sender?.avatar} name={message.sender?.fullName} size="sm" />
         </div>
       ) : null}
 
       <div className={`flex min-w-0 flex-col ${mine ? 'items-end' : 'items-start'} gap-1`}>
         <div
-          className={`message-bubble inline-flex min-w-0 max-w-[75vw] flex-col gap-2 px-4 py-3 text-left transition-transform duration-200 hover:-translate-y-0.5 md:max-w-[70%] lg:max-w-[65%] ${mine ? 'message-bubble--mine' : 'message-bubble--other'}`}
+          className={`message-bubble inline-flex min-w-0 max-w-[82vw] flex-col gap-2 rounded-[24px] px-4 py-3 text-left transition-transform duration-200 hover:-translate-y-0.5 md:max-w-[72%] lg:max-w-[64%] ${mine ? 'message-bubble--mine shadow-[0_16px_36px_rgba(10,132,255,0.16)]' : 'message-bubble--other shadow-[0_16px_36px_rgba(0,0,0,0.18)]'}`}
         >
+          {!mine ? (
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/55">
+              <span className="truncate">{senderName}</span>
+            </div>
+          ) : null}
+
           {message.replyTo ? (
-            <div className="rounded-[14px] border-l-2 border-white/15 bg-black/10 px-3 py-2">
+            <div className="rounded-[18px] border-l-2 border-[var(--wa-primary)]/60 bg-black/15 px-3 py-2">
               <p className="text-[10px] font-[var(--fw-semibold)] uppercase tracking-[0.22em] text-white/60">Replying to</p>
               <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-white/80">{message.replyTo.content}</p>
             </div>
@@ -54,7 +61,7 @@ const MessageBubbleComponent = ({ message, mine, onReply, onReact, onEdit, onDel
           ) : null}
 
           {message.content ? (
-            <p className={`whitespace-pre-wrap break-words text-[15px] leading-[1.45] ${message.deletedForEveryone ? 'italic opacity-75' : 'text-white'}`}>
+            <p className={`whitespace-pre-wrap break-words text-[15px] leading-[1.55] ${message.deletedForEveryone ? 'italic opacity-75' : 'text-white'}`}>
               {message.content}
             </p>
           ) : null}

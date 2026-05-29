@@ -30,7 +30,7 @@ export default function ChatHeader({ chat, onlineUsers = [], currentUserId, onBa
 
   const isOnline = (chat.members || [])
     .filter((member) => Number(member?.id) !== Number(currentUserId))
-    .some((member) => onlineUsers.includes(member.id));
+    .some((member) => member?.isOnline || onlineUsers.includes(Number(member.id)));
   const isDirectChat = !chat.isGroup && (chat.members || []).length <= 2;
   const callDisabled = !isDirectChat || call.status !== 'idle';
   const peer = (chat.members || []).find((member) => Number(member?.id) !== Number(currentUserId)) || chat;
