@@ -21,9 +21,9 @@ const MessageBubbleComponent = ({ message, mine, onReply, onReact, onEdit, onDel
         </div>
       ) : null}
 
-      <div className={`flex min-w-0 flex-col ${mine ? 'items-end' : 'items-start'} gap-1`}>
+      <div className={`flex min-w-0 max-w-full flex-col ${mine ? 'items-end' : 'items-start'} gap-1`}>
         <div
-          className={`message-bubble inline-flex min-w-0 max-w-[82vw] flex-col gap-2 rounded-[24px] px-4 py-3 text-left transition-transform duration-200 hover:-translate-y-0.5 md:max-w-[72%] lg:max-w-[64%] ${mine ? 'message-bubble--mine shadow-[0_16px_36px_rgba(10,132,255,0.16)]' : 'message-bubble--other shadow-[0_16px_36px_rgba(0,0,0,0.18)]'}`}
+          className={`message-bubble inline-flex w-fit min-w-0 max-w-[84vw] flex-col gap-2 rounded-[22px] px-3 py-2.5 text-left text-[14px] leading-relaxed break-words transition-transform duration-200 hover:-translate-y-0.5 sm:max-w-[72vw] md:max-w-[66%] lg:max-w-[58%] ${mine ? 'message-bubble--mine self-end shadow-[0_10px_24px_rgba(10,132,255,0.16)]' : 'message-bubble--other self-start shadow-[0_10px_24px_rgba(0,0,0,0.16)]'}`}
         >
           {!mine ? (
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/55">
@@ -61,7 +61,7 @@ const MessageBubbleComponent = ({ message, mine, onReply, onReact, onEdit, onDel
           ) : null}
 
           {message.content ? (
-            <p className={`whitespace-pre-wrap break-words text-[15px] leading-[1.55] ${message.deletedForEveryone ? 'italic opacity-75' : 'text-white'}`}>
+            <p className={`whitespace-pre-wrap break-words text-[14px] leading-[1.55] ${message.deletedForEveryone ? 'italic opacity-75' : 'text-white'}`}>
               {message.content}
             </p>
           ) : null}

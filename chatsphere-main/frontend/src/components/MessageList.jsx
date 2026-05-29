@@ -53,13 +53,13 @@ function MessageList({ messages, currentUserId, onReply, onReact, onEdit, onDele
   }
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-y-auto px-1 py-4 md:px-2">
+    <div className="flex w-full flex-col gap-3 px-1 py-3 md:px-2">
       {Object.entries(messageGroups).map(([date, dateMessages]) => (
-        <div key={date} className="space-y-4">
-          <div className="message-separator animate-fadeIn sticky top-0 z-10 mx-auto w-fit rounded-full border border-white/10 bg-[rgba(17,17,17,0.9)] px-4 py-1.5 text-[11px] uppercase tracking-[0.24em] text-[var(--wa-text-secondary)] shadow-[0_8px_24px_rgba(0,0,0,0.22)] backdrop-blur">
+        <div key={date} className="space-y-3">
+          <div className="message-separator animate-fadeIn sticky top-0 z-10 mx-auto w-fit rounded-full border border-white/10 bg-[rgba(17,17,17,0.9)] px-3 py-1 text-[10px] uppercase tracking-[0.24em] text-[var(--wa-text-secondary)] shadow-[0_8px_24px_rgba(0,0,0,0.22)] backdrop-blur">
             {formatDateSeparator(date)}
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {dateMessages.map((message) => (
               <div key={message.id} className="animate-messageIn px-0.5">
                 <MessageBubble
