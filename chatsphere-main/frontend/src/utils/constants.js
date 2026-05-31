@@ -14,7 +14,7 @@ export const SOCKET_EVENTS = {
   SIDEBAR_UPDATE: 'sidebar_update',
   UNREAD_COUNT_UPDATE: 'unread_count_update',
   MESSAGE_SENT: 'message:ack',
-  MESSAGE_RECEIVED: 'message:receive',
+  MESSAGE_RECEIVED: 'message-received',
   MESSAGE_UPDATED: 'message:updated',
   MESSAGE_DELETED: 'message:deleted',
   CHAT_UPDATED: 'chat-updated',

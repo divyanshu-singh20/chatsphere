@@ -304,7 +304,13 @@ export function ChatProvider({ children }) {
   const handleIncomingMessage = async (message, options = {}) => {
     // If server message already handled by id, skip
     if (!message) return;
-    if (message.id && handledMessageIdsRef.current.has(message.id)) return;
+    if (message.id && handledMessageIdsRef.current.has(message.id)) {
+      console.debug('[chat][message][state] dropped-duplicate-id', {
+        messageId: message.id,
+        chatId: message.chatId || null
+      });
+      return;
+    }
 
     // If it's an ack/replay for a client-generated message, replace the temp message
     if (message.clientMsgId && handledClientMsgIdsRef.current.has(message.clientMsgId)) {
@@ -312,6 +318,11 @@ export function ChatProvider({ children }) {
       setMessages((current) => current.map((m) => (m.clientMsgId === message.clientMsgId ? { ...m, ...message, id: message.id } : m)));
       if (message.id) handledMessageIdsRef.current.add(message.id);
       handledClientMsgIdsRef.current.delete(message.clientMsgId);
+      console.debug('[chat][message][state] replaced-temp', {
+        clientMsgId: message.clientMsgId,
+        messageId: message.id || null,
+        chatId: message.chatId || null
+      });
       return;
     }
 
@@ -320,6 +331,16 @@ export function ChatProvider({ children }) {
     const incomingChatId = Number(message.chatId);
     const isOwnMessage = Number(message.senderId) === Number(user?.id);
     const isActiveChat = currentChatId === incomingChatId;
+
+    console.debug('[chat][message][state] processing', {
+      messageId: message.id || null,
+      chatId: incomingChatId || null,
+      senderId: message.senderId || null,
+      currentChatId,
+      isOwnMessage,
+      isActiveChat,
+      forceNotify: !!options.forceNotify
+    });
 
     // Always update sidebar (last message, timestamp, move to top)
     bumpChat(message, !isOwnMessage && !isActiveChat ? 1 : 0);
@@ -334,6 +355,7 @@ export function ChatProvider({ children }) {
     // If active chat, append to messages
     if (isActiveChat) {
       setMessages((current) => {
+        const beforeCount = current.length;
         const next = current.map((entry) => {
           if (message.clientMsgId && entry.clientMsgId === message.clientMsgId) {
             return { ...entry, ...message, id: message.id };
@@ -343,14 +365,33 @@ export function ChatProvider({ children }) {
           }
           return entry;
         });
-        if (next.some((entry) => Number(entry.id) === Number(message.id))) return next;
-        return [...next, message];
+        if (next.some((entry) => Number(entry.id) === Number(message.id))) {
+          console.debug('[chat][message][state] active-chat-merged', {
+            messageId: message.id || null,
+            chatId: incomingChatId || null,
+            beforeCount,
+            afterCount: next.length
+          });
+          return next;
+        }
+        const appended = [...next, message];
+        console.debug('[chat][message][state] active-chat-appended', {
+          messageId: message.id || null,
+          chatId: incomingChatId || null,
+          beforeCount,
+          afterCount: appended.length
+        });
+        return appended;
       });
     } else if (!isOwnMessage) {
       // not active, notify user
       setNotifications((current) => [{ id: message.id, message, read: false }, ...current]);
       playNotificationSound();
       showBrowserNotification(message);
+      console.debug('[chat][message][state] queued-notification', {
+        messageId: message.id || null,
+        chatId: incomingChatId || null
+      });
     }
 
     if (options.forceNotify && !isActiveChat && !isOwnMessage) {
@@ -395,7 +436,7 @@ export function ChatProvider({ children }) {
       }
     };
     const handleReceiveMessage = (message) => {
-      console.debug('[chat][message] receive', { messageId: message?.id || null, chatId: message?.chatId || null, senderId: message?.senderId || null });
+      console.debug('[chat][message][receive-broadcast]', { event: SOCKET_EVENTS.RECEIVE_MESSAGE, messageId: message?.id || null, chatId: message?.chatId || null, senderId: message?.senderId || null });
       handleIncomingMessage(message);
     };
     const handleSendMessage = (message) => {
@@ -403,7 +444,7 @@ export function ChatProvider({ children }) {
       handleIncomingMessage(message);
     };
     const handleMessageReceived = (message) => {
-      console.debug('[chat][message] received-legacy', { messageId: message?.id || null, chatId: message?.chatId || null, senderId: message?.senderId || null });
+      console.debug('[chat][message][receive-broadcast]', { event: SOCKET_EVENTS.MESSAGE_RECEIVED, messageId: message?.id || null, chatId: message?.chatId || null, senderId: message?.senderId || null });
       handleIncomingMessage(message);
     };
     const handleMessageUpdated = (message) => {
@@ -712,6 +753,10 @@ export function ChatProvider({ children }) {
     const socket = getSocket();
     if (socket && socket.connected) {
       return new Promise((resolve, reject) => {
+        console.debug('[chat][message][emit]', {
+          event: SOCKET_EVENTS.SEND_MESSAGE,
+          payload: { chatId, hasContent: !!String(content || '').trim(), replyToId: replyToId || null, clientMsgId }
+        });
         socket.emit(SOCKET_EVENTS.SEND_MESSAGE, { chatId, content, replyToId, clientMsgId }, (ack) => {
           console.debug('[chat][message] send-ack', {
             chatId,

@@ -85,6 +85,14 @@ export const sendMessage = asyncHandler(async (req, res) => {
       files: req.files || []
     });
 
+    console.log('[message][http-send]', {
+      senderId: req.user.id,
+      chatId: Number(chatId),
+      messageId: payload?.id || null,
+      hasFiles: Array.isArray(req.files) && req.files.length > 0,
+      hasContent: !!String(content || '').trim()
+    });
+
     return res.status(201).json({ message: payload });
   } catch (error) {
     const status = error.statusCode || 500;

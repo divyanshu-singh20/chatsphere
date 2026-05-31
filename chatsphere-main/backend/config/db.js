@@ -39,6 +39,10 @@ dotenv.config();
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Allow explicit dialect override for local testing (e.g., DB_DIALECT=sqlite)
+const configuredDialect = (process.env.DB_DIALECT || '').toLowerCase();
+const useSqlite = configuredDialect === 'sqlite';
+
 const requireEnv = (key) => {
   const value = process.env[key];
   if (!value && isProduction) {
@@ -59,7 +63,7 @@ const useSsl =
   isProduction;
 
 const sequelizeOptions = {
-  dialect: 'mysql',
+  dialect: useSqlite ? 'sqlite' : 'mysql',
   logging: false,
   timezone: '+00:00'
 };
@@ -73,12 +77,23 @@ if (useSsl) {
   };
 }
 
-const sequelize = connectionUrl
-  ? new Sequelize(connectionUrl, sequelizeOptions)
-  : new Sequelize(dbName, dbUser, dbPassword, {
-      ...sequelizeOptions,
-      host: dbHost,
-      port: dbPort
-    });
+let sequelize;
+if (useSqlite) {
+  const path = await import('path');
+  const defaultStorage = path.resolve(process.cwd(), 'chatsphere.sqlite');
+  sequelize = new Sequelize({
+    dialect: 'sqlite',
+    storage: process.env.SQLITE_STORAGE || defaultStorage,
+    logging: false
+  });
+} else {
+  sequelize = connectionUrl
+    ? new Sequelize(connectionUrl, sequelizeOptions)
+    : new Sequelize(dbName, dbUser, dbPassword, {
+        ...sequelizeOptions,
+        host: dbHost,
+        port: dbPort
+      });
+}
 
 export default sequelize;

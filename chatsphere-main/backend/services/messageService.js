@@ -1,6 +1,7 @@
 import { Chat, Message, User } from '../models/index.js';
 import { uploadBuffer } from '../config/cloudinary.js';
 import { getIO } from '../socket/index.js';
+import * as SocketManager from '../socket/manager.js';
 
 const toSafeUser = (user) => (user ? {
   id: user.id,
@@ -109,6 +110,15 @@ export const persistMessage = async ({ chatId, senderId, content = '', replyToId
 
   await Chat.update({ lastMessageAt: new Date() }, { where: { id: chatId } });
 
+  console.log('[message][save]', {
+    messageId: saved.id,
+    chatId: Number(chatId),
+    senderId: Number(senderId),
+    receiverIds: getReceiverIds(chat, senderId),
+    hasMedia: !!mediaUrl,
+    mediaType
+  });
+
   return {
     chat,
     message: saved,
@@ -135,6 +145,17 @@ export const broadcastMessage = ({ chatId, senderId, receiverIds = [], payload }
   console.debug('[message][emit]', { event: 'message:sent', to: `user:${senderId}`, messageId: payload.id });
 
   receiverIds.forEach((receiverId) => {
+    const roomName = `user:${receiverId}`;
+    const receiverSocketIds = SocketManager.getSocketsForUser(receiverId);
+    const roomSize = io.sockets?.adapter?.rooms?.get(roomName)?.size || 0;
+    console.debug('[message][broadcast-target]', {
+      receiverId,
+      roomName,
+      receiverSocketIds,
+      roomSize,
+      messageId: payload.id
+    });
+
     const target = io.to(`user:${receiverId}`);
     target.emit('message:receive', payload);
     target.emit('message-received', payload);

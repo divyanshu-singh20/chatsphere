@@ -39,11 +39,31 @@ function MessageList({ messages, currentUserId }) {
     const seen = new Set();
     return (messages || []).filter((message) => {
       const id = Number(message?.id);
-      if (!id || seen.has(id)) return false;
+      if (!id) {
+        console.debug('[chat][message][render] dropped-invalid-id', {
+          rawId: message?.id ?? null,
+          chatId: message?.chatId ?? null,
+          clientMsgId: message?.clientMsgId ?? null
+        });
+        return false;
+      }
+      if (seen.has(id)) {
+        console.debug('[chat][message][render] dropped-duplicate-id', {
+          messageId: id,
+          chatId: message?.chatId ?? null
+        });
+        return false;
+      }
       seen.add(id);
       return true;
     });
   }, [messages]);
+
+  console.debug('[chat][message][render] list-state', {
+    inputCount: (messages || []).length,
+    uniqueCount: uniqueMessages.length,
+    currentUserId: Number(currentUserId) || null
+  });
 
   const messageGroups = useMemo(() => groupMessagesByDate(uniqueMessages), [uniqueMessages]);
   const isMine = (message) => Number(message?.senderId) === Number(currentUserId);

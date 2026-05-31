@@ -248,6 +248,16 @@ export const initSocket = (server) => {
       console.debug('[socket] room joined', { userId, room: 'admins' });
     }
 
+    try {
+      console.debug('[socket] rooms after connect', {
+        socketId: socket.id,
+        userId,
+        rooms: Array.from(socket.rooms || [])
+      });
+    } catch (error) {
+      console.warn('[socket] failed to inspect rooms after connect', { socketId: socket.id, userId, error: error?.message || error });
+    }
+
     User.update({ isOnline: true, lastSeenAt: null }, { where: { id: userId } }).catch(() => {});
     try {
       console.debug('[socket][presence] setOnline start', { userId });
@@ -580,11 +590,13 @@ export const initSocket = (server) => {
         }
 
         console.log('[socket] message:send received', {
+          socketId: socket.id,
           userId,
           chatId,
           hasContent: !!String(payload.content || '').trim(),
           replyToId: payload.replyToId || null,
-          clientMsgId: payload.clientMsgId || null
+          clientMsgId: payload.clientMsgId || null,
+          joinedRooms: Array.from(socket.rooms || [])
         });
 
         const result = await createAndBroadcastMessage({
