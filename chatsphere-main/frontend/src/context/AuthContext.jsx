@@ -55,8 +55,11 @@ export function AuthProvider({ children }) {
     socket.auth = { token: nextToken };
     socket.off('account:status-changed', handleAccountStatusChange);
     socket.on('account:status-changed', handleAccountStatusChange);
-
-    if (!socket.connected) socket.connect();
+    console.debug('[auth][socket] session synced', {
+      hasToken: !!nextToken,
+      socketConnected: !!socket.connected,
+      socketActive: !!socket.active
+    });
   };
 
   /**

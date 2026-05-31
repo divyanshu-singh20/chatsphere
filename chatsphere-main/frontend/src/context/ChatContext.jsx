@@ -378,14 +378,21 @@ export function ChatProvider({ children }) {
     if (token) {
       socket.auth = { token };
     }
-    if (!socket.connected) {
-      socket.connect();
-    }
 
     if (listenersAttachedRef.current) return;
     listenersAttachedRef.current = true;
 
-    const handleOnlineUsers = (payload) => setOnlineUsers(dedupeIds(payload || []));
+    console.debug('[chat][socket] attaching realtime listeners', {
+      userId: user.id,
+      socketConnected: !!socket.connected,
+      socketActive: !!socket.active,
+      hasToken: !!token
+    });
+
+    const handleOnlineUsers = (payload) => {
+      console.debug('[chat][presence] online-users', { count: Array.isArray(payload) ? payload.length : 0, payload });
+      setOnlineUsers(dedupeIds(payload || []));
+    };
     const handleTyping = ({ chatId, userId }) => {
       const normalizedChatId = Number(chatId);
       const normalizedUserId = Number(userId);
@@ -400,10 +407,22 @@ export function ChatProvider({ children }) {
         setTypingUserIds((current) => current.filter((id) => Number(id) !== normalizedUserId));
       }
     };
-    const handleReceiveMessage = (message) => handleIncomingMessage(message);
-    const handleSendMessage = (message) => handleIncomingMessage(message);
-    const handleMessageReceived = (message) => handleIncomingMessage(message);
-    const handleMessageUpdated = (message) => handleIncomingMessage(message);
+    const handleReceiveMessage = (message) => {
+      console.debug('[chat][message] receive', { messageId: message?.id || null, chatId: message?.chatId || null, senderId: message?.senderId || null });
+      handleIncomingMessage(message);
+    };
+    const handleSendMessage = (message) => {
+      console.debug('[chat][message] sent', { messageId: message?.id || null, chatId: message?.chatId || null, senderId: message?.senderId || null });
+      handleIncomingMessage(message);
+    };
+    const handleMessageReceived = (message) => {
+      console.debug('[chat][message] received-legacy', { messageId: message?.id || null, chatId: message?.chatId || null, senderId: message?.senderId || null });
+      handleIncomingMessage(message);
+    };
+    const handleMessageUpdated = (message) => {
+      console.debug('[chat][message] updated', { messageId: message?.id || null, chatId: message?.chatId || null, senderId: message?.senderId || null });
+      handleIncomingMessage(message);
+    };
     const handleNewMessageNotification = (payload) => {
       if (payload?.message) handleIncomingMessage(payload.message, { forceNotify: true });
     };
@@ -480,6 +499,13 @@ export function ChatProvider({ children }) {
         isOnline: payload.type !== 'offline',
         lastSeenAt: payload.lastSeenAt || null
       };
+
+      console.debug('[chat][presence]', {
+        userId: next.userId,
+        isOnline: next.isOnline,
+        lastSeenAt: next.lastSeenAt,
+        eventType: payload.type || null
+      });
 
       setOnlineUsers((current) => {
         const hasUser = current.includes(next.userId);
@@ -564,8 +590,16 @@ export function ChatProvider({ children }) {
     socket.on('user:approved', handleUserApproved);
     socket.on('user:status-updated', handleUserPresence);
 
+    if (!socket.connected) {
+      console.debug('[chat][socket] connecting after listeners attached', { userId: user.id });
+      socket.connect();
+    } else {
+      console.debug('[chat][socket] already connected', { userId: user.id, socketId: socket.id || null });
+    }
+
     return () => {
       listenersAttachedRef.current = false;
+      console.debug('[chat][socket] removing realtime listeners', { userId: user.id });
       if (presenceRefreshTimerRef.current) {
         window.clearTimeout(presenceRefreshTimerRef.current);
         presenceRefreshTimerRef.current = null;
@@ -606,6 +640,7 @@ export function ChatProvider({ children }) {
     if (selectedChat?.id && selectedChat.id !== chat?.id) {
       socket.emit(SOCKET_EVENTS.LEAVE_CHAT, { chatId: selectedChat.id });
     }
+    console.debug('[chat][room] selectChat', { fromChatId: selectedChat?.id || null, toChatId: chat?.id || null, socketConnected: !!socket.connected });
     setSelectedChat(chat);
     if (chat?.id) {
       setChats((current) => normalizeChats(current.map((entry) => Number(entry.id) === Number(chat.id) ? { ...entry, unreadCount: 0 } : entry)));
@@ -613,6 +648,7 @@ export function ChatProvider({ children }) {
     if (!chat) return;
 
     socket.emit(SOCKET_EVENTS.JOIN_CHAT, { chatId: chat.id });
+    console.debug('[chat][room] join-chat emitted', { chatId: chat.id });
 
     setLoadingMessages(true);
     try {
@@ -680,10 +716,23 @@ export function ChatProvider({ children }) {
     handledClientMsgIdsRef.current.add(clientMsgId);
     bumpChat(tempMsg, 0);
 
+    console.debug('[chat][message] send', {
+      chatId,
+      clientMsgId,
+      hasFiles: files.length > 0,
+      via: 'socket-or-rest'
+    });
+
     const socket = getSocket();
     if (socket && socket.connected) {
       return new Promise((resolve, reject) => {
         socket.emit(SOCKET_EVENTS.SEND_MESSAGE, { chatId, content, replyToId, clientMsgId }, (ack) => {
+          console.debug('[chat][message] send-ack', {
+            chatId,
+            clientMsgId,
+            ok: !!ack?.ok,
+            messageId: ack?.message?.id || null
+          });
           if (ack && ack.ok && ack.message) {
             const serverMsg = ack.message;
             // replace temp with server msg
@@ -708,6 +757,11 @@ export function ChatProvider({ children }) {
     formData.append('content', content || '');
     if (replyToId) formData.append('replyToId', replyToId);
     const { data } = await api.post('/messages', formData, {
+    });
+    console.debug('[chat][message] send-rest-success', {
+      chatId,
+      clientMsgId,
+      messageId: data.message?.id || null
     });
     setMessages((current) => current.map((m) => (m.clientMsgId === clientMsgId ? data.message : m)));
     if (data.message?.id) handledMessageIdsRef.current.add(data.message.id);

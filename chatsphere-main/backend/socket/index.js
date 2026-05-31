@@ -55,7 +55,9 @@ export const forceUserOffline = async (userId) => {
   presenceService.setOffline(targetUserId).catch(() => {});
 
   io.emit('user:offline', { userId: targetUserId, lastSeenAt: offlineAt.toISOString(), reason: 'blocked' });
-  io.emit('online-users', SocketManager.getOnlineUserIds());
+  presenceService.getOnlineUsers().then((onlineUsers) => {
+    io.emit('online-users', onlineUsers);
+  }).catch(() => {});
   return true;
 };
 
@@ -214,7 +216,7 @@ export const initSocket = (server) => {
     }
   });
 
-  io.on('connection', (socket) => {
+  io.on('connection', async (socket) => {
     const userId = Number(socket.user.id);
     const userSnapshot = toSafeUser(socket.user);
 
@@ -247,12 +249,23 @@ export const initSocket = (server) => {
     }
 
     User.update({ isOnline: true, lastSeenAt: null }, { where: { id: userId } }).catch(() => {});
-    presenceService.setOnline(userId).catch(() => {});
+    try {
+      console.debug('[socket][presence] setOnline start', { userId });
+      await presenceService.setOnline(userId);
+      console.debug('[socket][presence] setOnline done', { userId, onlineUsers: SocketManager.getOnlineUserIds() });
+    } catch (error) {
+      console.warn('[socket][presence] setOnline failed', { userId, error: error?.message || error });
+    }
 
-    io.emit('user:online', { userId, lastSeenAt: null });
-    io.emit('online-users', SocketManager.getOnlineUserIds());
-    console.debug('[socket] broadcast', { event: 'user:online', userId });
-    console.debug('[socket] broadcast', { event: 'online-users', onlineUsers: SocketManager.getOnlineUserIds() });
+    try {
+      const onlineUsers = await presenceService.getOnlineUsers();
+      io.emit('user:online', { userId, lastSeenAt: null });
+      io.emit('online-users', onlineUsers);
+      console.debug('[socket] broadcast', { event: 'user:online', userId });
+      console.debug('[socket] broadcast', { event: 'online-users', onlineUsers });
+    } catch (error) {
+      console.warn('[socket] presence broadcast failed', { userId, error: error?.message || error });
+    }
 
     // Forward server-side admin status events to all connected clients.
     socket.on('user:approved', (payload) => {
@@ -616,7 +629,7 @@ export const initSocket = (server) => {
       if (chatId) socket.leave(`chat:${chatId}`);
     });
 
-    socket.on('disconnect', (reason) => {
+    socket.on('disconnect', async (reason) => {
       SocketManager.unregisterUserSocket(userId, socket.id);
       if (onlineUsers.get(userId) === socket.id) {
         const remainingSocketId = getActiveSocketIds(userId)[0] || null;
@@ -640,11 +653,23 @@ export const initSocket = (server) => {
 
       if (remaining === 0) {
         User.update({ isOnline: false, lastSeenAt: new Date() }, { where: { id: userId } }).catch(() => {});
-        presenceService.setOffline(userId).catch(() => {});
-        io.emit('user:offline', { userId, lastSeenAt: new Date().toISOString() });
-      }
+        try {
+          console.debug('[socket][presence] setOffline start', { userId });
+          await presenceService.setOffline(userId);
+          console.debug('[socket][presence] setOffline done', { userId, onlineUsers: SocketManager.getOnlineUserIds() });
+        } catch (error) {
+          console.warn('[socket][presence] setOffline failed', { userId, error: error?.message || error });
+        }
 
-      io.emit('online-users', SocketManager.getOnlineUserIds());
+        try {
+          const onlineUsers = await presenceService.getOnlineUsers();
+          io.emit('user:offline', { userId, lastSeenAt: new Date().toISOString() });
+          console.debug('[socket] broadcast', { event: 'user:offline', userId });
+          io.emit('online-users', onlineUsers);
+        } catch (error) {
+          console.warn('[socket] offline broadcast failed', { userId, error: error?.message || error });
+        }
+      }
     });
   });
 

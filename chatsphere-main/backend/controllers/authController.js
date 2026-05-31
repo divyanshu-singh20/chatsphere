@@ -6,6 +6,8 @@ import { signToken } from '../utils/jwt.js';
 import { uploadBuffer } from '../config/cloudinary.js';
 import { User } from '../models/index.js';
 import { getIO } from '../socket/index.js';
+import SocketManager from '../socket/manager.js';
+import presenceService from '../services/presenceService.js';
 
 export const toSafeUser = (user) => ({
   id: user.id,
@@ -176,6 +178,20 @@ export const login = asyncHandler(async (req, res) => {
       secure: isProduction,
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
+    console.debug('[auth][login] marking user online', { userId: user.id });
+    User.update({ isOnline: true, lastSeenAt: null }, { where: { id: user.id } }).catch(() => {});
+    try {
+      await presenceService.setOnline(user.id);
+      const io = getIO();
+      if (io) {
+        const onlineUsers = await presenceService.getOnlineUsers();
+        io.emit('user:online', { userId: user.id, lastSeenAt: null });
+        io.emit('online-users', onlineUsers);
+        console.debug('[auth][login] emitted presence', { userId: user.id, onlineUsers });
+      }
+    } catch (err) {
+      console.warn('[auth][login] presence broadcast failed', err?.message || err);
+    }
     console.log('[auth][login] success', { userId: user.id, role: user.role });
     return res.json({ token, user: toSafeUser(user) });
   } catch (error) {
