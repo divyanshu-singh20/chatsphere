@@ -301,18 +301,6 @@ export function ChatProvider({ children }) {
     }
   }, [uniqueUsersById]);
 
-  const refreshPresenceSnapshot = useCallback(() => {
-    if (presenceRefreshTimerRef.current) {
-      window.clearTimeout(presenceRefreshTimerRef.current);
-    }
-
-    presenceRefreshTimerRef.current = window.setTimeout(() => {
-      syncChatsSnapshot();
-      syncUsersSnapshot();
-      presenceRefreshTimerRef.current = null;
-    }, 75);
-  }, [syncChatsSnapshot, syncUsersSnapshot]);
-
   const handleIncomingMessage = async (message, options = {}) => {
     // If server message already handled by id, skip
     if (!message) return;
@@ -390,7 +378,6 @@ export function ChatProvider({ children }) {
     });
 
     const handleOnlineUsers = (payload) => {
-      console.debug('[chat][presence] online-users', { count: Array.isArray(payload) ? payload.length : 0, payload });
       setOnlineUsers(dedupeIds(payload || []));
     };
     const handleTyping = ({ chatId, userId }) => {
@@ -518,7 +505,6 @@ export function ChatProvider({ children }) {
       setUsers((current) => uniqueUsersById(current.map((entry) => applyPresenceToMember(entry, next))));
       setChats((current) => normalizeChats(current.map((chat) => applyPresenceToChat(chat, next))));
       setSelectedChat((current) => applyPresenceToChat(current, next));
-      refreshPresenceSnapshot();
     };
     const handleUserApproved = (payload) => {
       const userPayload = payload?.user || payload;
@@ -625,7 +611,7 @@ export function ChatProvider({ children }) {
       socket.off('user:approved', handleUserApproved);
       socket.off('user:status-updated', handleUserPresence);
     };
-  }, [normalizeChats, uniqueUsersById, dedupeIds, refreshPresenceSnapshot]);
+  }, [normalizeChats, uniqueUsersById, dedupeIds]);
 
   useEffect(() => {
     if (!user) return;
