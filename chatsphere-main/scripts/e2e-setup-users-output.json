@@ -1,0 +1,72 @@
+{
+  "base": "http://localhost:5003",
+  "createdAt": "2026-05-31T11:14:16.061Z",
+  "adminUserId": 1,
+  "users": {
+    "maya": {
+      "email": "e2e_maya_1780226056061@example.com",
+      "password": "Password@123",
+      "id": 3,
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MywiaWF0IjoxNzgwMjI2MDU4LCJleHAiOjE3ODA4MzA4NTh9.YREwwERE0qdX4v67Jc3eSHJiYJNpTFUhXUIxHFj2e_Q"
+    },
+    "kabir": {
+      "email": "e2e_kabir_1780226056061@example.com",
+      "password": "Password@123",
+      "id": 4,
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwiaWF0IjoxNzgwMjI2MDU4LCJleHAiOjE3ODA4MzA4NTh9.6Y0rGcr9iUg_ezZCPkwrd5oqc5Y24rETTCHF09vNMhs"
+    }
+  },
+  "chat": {
+    "id": 1,
+    "name": "E2E Kabir 1780226056061",
+    "avatar": null,
+    "status": "approved",
+    "isGroup": false,
+    "members": [
+      {
+        "id": 3,
+        "fullName": "E2E Maya 1780226056061",
+        "username": "e2e_maya_1780226056061",
+        "email": "e2e_maya_1780226056061@example.com",
+        "phoneNumber": "+15556056061",
+        "password": "$2a$12$KFI9v.sim/RtmKgd0JIXo.inQeoQFQKmnpyF9Bo5TlPFMLKZUN5rq",
+        "role": "user",
+        "status": "approved",
+        "avatar": null,
+        "bio": null,
+        "about": null,
+        "lastSeenAt": null,
+        "isOnline": true,
+        "rememberToken": null,
+        "isDeleted": false,
+        "createdAt": "2026-05-31T11:14:17.458Z",
+        "updatedAt": "2026-05-31T11:14:18.451Z",
+        "deletedAt": null
+      },
+      {
+        "id": 4,
+        "fullName": "E2E Kabir 1780226056061",
+        "username": "e2e_kabir_1780226056061",
+        "email": "e2e_kabir_1780226056061@example.com",
+        "phoneNumber": "+16666056061",
+        "password": "$2a$12$C13CP4pRPW99yv9uyhvt.eScLVwO04.8K0e11dbmIvoB70IJLrtjW",
+        "role": "user",
+        "status": "approved",
+        "avatar": null,
+        "bio": null,
+        "about": null,
+        "lastSeenAt": null,
+        "isOnline": true,
+        "rememberToken": null,
+        "isDeleted": false,
+        "createdAt": "2026-05-31T11:14:17.946Z",
+        "updatedAt": "2026-05-31T11:14:18.898Z",
+        "deletedAt": null
+      }
+    ],
+    "lastMessage": null,
+    "lastMessageAt": null,
+    "updatedLabel": ""
+  },
+  "pass": true
+}

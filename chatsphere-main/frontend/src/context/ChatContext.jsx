@@ -60,7 +60,6 @@ export function ChatProvider({ children }) {
   const handledMessageIdsRef = useRef(new Set());
   const handledClientMsgIdsRef = useRef(new Set());
   const notificationCooldownRef = useRef(new Map());
-  const listenersAttachedRef = useRef(false);
   const presenceRefreshTimerRef = useRef(null);
 
   const uniqueUsersById = useCallback((list = []) => {
@@ -408,9 +407,6 @@ export function ChatProvider({ children }) {
       socket.auth = { token };
     }
 
-    if (listenersAttachedRef.current) return;
-    listenersAttachedRef.current = true;
-
     console.debug('[chat][socket] attaching realtime listeners', {
       userId: user.id,
       socketConnected: !!socket.connected,
@@ -625,7 +621,6 @@ export function ChatProvider({ children }) {
     }
 
     return () => {
-      listenersAttachedRef.current = false;
       console.debug('[chat][socket] removing realtime listeners', { userId: user.id });
       if (presenceRefreshTimerRef.current) {
         window.clearTimeout(presenceRefreshTimerRef.current);
@@ -652,7 +647,7 @@ export function ChatProvider({ children }) {
       socket.off('user:approved', handleUserApproved);
       socket.off('user:status-updated', handleUserPresence);
     };
-  }, [normalizeChats, uniqueUsersById, dedupeIds]);
+  }, [user, normalizeChats, uniqueUsersById, dedupeIds]);
 
   useEffect(() => {
     if (!user) return;
